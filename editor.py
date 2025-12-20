@@ -339,6 +339,19 @@ class EditorEngine:
                 logging.info(f"   🎵 Background music added (mood: {mood})")
             except Exception as e:
                 logging.error(f"   ⚠️ Could not add background music: {e}")
+        
+        # Write the final video
+        fps = final_video.fps if hasattr(final_video, 'fps') and final_video.fps else 24
+
+        final_video.write_videofile(
+            output_path, 
+            fps=fps, 
+            codec="libx264", 
+            audio_codec="aac",
+            threads=4,
+            preset="medium"
+        )
+        logging.info(f"   ✅ Video saved: {output_path}")
     
     def _select_music_by_mood(self, mood: str) -> str:
         """Selects appropriate background music based on content mood."""
@@ -383,17 +396,6 @@ class EditorEngine:
             return random.choice(music_files)
         
         return None
-        
-        fps = final_video.fps if hasattr(final_video, 'fps') and final_video.fps else 24
-
-        final_video.write_videofile(
-            output_path, 
-            fps=fps, 
-            codec="libx264", 
-            audio_codec="aac",
-            threads=4,
-            preset="medium"
-        )
 
     def apply_watermark(self, video_clip, watermark_path: str):
         """Overlays a watermark image on the video."""
