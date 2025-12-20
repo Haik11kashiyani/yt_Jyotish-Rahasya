@@ -6,6 +6,13 @@ from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
 
+# Try to import Google AI
+try:
+    import google.generativeai as genai
+    GOOGLE_AI_AVAILABLE = True
+except ImportError:
+    GOOGLE_AI_AVAILABLE = False
+
 # Load environment variables
 load_dotenv()
 
@@ -17,10 +24,11 @@ class AstrologerAgent:
     The Astrologer Agent uses LLMs to generate authentic Vedic Astrology content.
     It acts like a knowledgeable Shastri (Astrologer).
     Supports multiple API keys with automatic failover on rate limits.
+    Falls back to Google AI Studio (Gemini) when OpenRouter is exhausted.
     """
     
     def __init__(self, api_key: str = None, backup_key: str = None):
-        """Initialize with OpenRouter API Keys (primary + backup)."""
+        """Initialize with OpenRouter API Keys (primary + backup) + Google AI fallback."""
         self.api_keys = []
         
         # Primary key
@@ -33,14 +41,27 @@ class AstrologerAgent:
         if backup:
             self.api_keys.append(backup)
         
-        if not self.api_keys:
-            raise ValueError("No OPENROUTER_API_KEY found!")
+        # Google AI key (fallback)
+        self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY")
+        if self.google_ai_key and GOOGLE_AI_AVAILABLE:
+            genai.configure(api_key=self.google_ai_key)
+            self.google_model = genai.GenerativeModel('gemini-1.5-flash')
+            logging.info("🌟 Google AI Studio (Gemini) fallback enabled")
+        else:
+            self.google_model = None
         
-        logging.info(f"🔑 Loaded {len(self.api_keys)} API key(s)")
+        if not self.api_keys and not self.google_model:
+            raise ValueError("No API keys found! Need OPENROUTER_API_KEY or GOOGLE_AI_API_KEY")
+        
+        logging.info(f"🔑 Loaded {len(self.api_keys)} OpenRouter key(s)")
         
         self.current_key_index = 0
-        self._init_client()
-        self.models = self.get_best_free_models()
+        if self.api_keys:
+            self._init_client()
+            self.models = self.get_best_free_models()
+        else:
+            self.client = None
+            self.models = []
 
     def _init_client(self):
         """Initialize OpenAI client with current key."""
@@ -57,6 +78,32 @@ class AstrologerAgent:
             self._init_client()
             return True
         return False
+
+    def _generate_with_google_ai(self, system_prompt: str, user_prompt: str) -> dict:
+        """Fallback to Google AI Studio (Gemini) when OpenRouter fails."""
+        if not self.google_model:
+            return None
+            
+        logging.info("🌟 Trying Google AI Studio (Gemini) as fallback...")
+        try:
+            full_prompt = f"{system_prompt}\n\n{user_prompt}"
+            response = self.google_model.generate_content(full_prompt)
+            
+            # Extract JSON from response
+            text = response.text
+            # Clean up markdown code blocks if present
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
+            
+            result = json.loads(text.strip())
+            logging.info("✅ Google AI Studio succeeded!")
+            return result
+            
+        except Exception as e:
+            logging.error(f"❌ Google AI Studio failed: {e}")
+            return None
 
     def get_best_free_models(self) -> list:
         """
@@ -158,7 +205,13 @@ class AstrologerAgent:
                 # All models exhausted for current key
                 break
         
-        logging.error(f"❌ All models and keys exhausted: {errors}")
+        # FINAL FALLBACK: Try Google AI Studio
+        logging.warning("⚠️ All OpenRouter models/keys exhausted. Trying Google AI fallback...")
+        google_result = self._generate_with_google_ai(system_prompt, user_prompt)
+        if google_result:
+            return google_result
+        
+        logging.error(f"❌ All models, keys, and fallbacks exhausted: {errors}")
         raise Exception(f"All models failed to generate {period_type}. Errors: {errors}")
 
     def generate_daily_rashifal(self, rashi: str, date: str) -> dict:

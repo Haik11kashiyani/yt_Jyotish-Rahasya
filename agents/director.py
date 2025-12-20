@@ -5,6 +5,13 @@ import requests
 from openai import OpenAI
 from dotenv import load_dotenv
 
+# Try to import Google AI
+try:
+    import google.generativeai as genai
+    GOOGLE_AI_AVAILABLE = True
+except ImportError:
+    GOOGLE_AI_AVAILABLE = False
+
 # Load environment variables
 load_dotenv()
 
@@ -16,10 +23,11 @@ class DirectorAgent:
     It decides the 'Mood' and selects specific, cinematic keywords for stock footage.
     Auto-discovers the best free model on OpenRouter.
     Supports multiple API keys with automatic failover on rate limits.
+    Falls back to Google AI Studio when OpenRouter is exhausted.
     """
     
     def __init__(self, api_key: str = None, backup_key: str = None):
-        """Initialize with OpenRouter API Keys (primary + backup)."""
+        """Initialize with OpenRouter API Keys (primary + backup) + Google AI fallback."""
         self.api_keys = []
         
         # Primary key
@@ -32,12 +40,24 @@ class DirectorAgent:
         if backup:
             self.api_keys.append(backup)
         
-        if not self.api_keys:
-            raise ValueError("No OPENROUTER_API_KEY found!")
+        # Google AI key (fallback)
+        self.google_ai_key = os.getenv("GOOGLE_AI_API_KEY")
+        if self.google_ai_key and GOOGLE_AI_AVAILABLE:
+            genai.configure(api_key=self.google_ai_key)
+            self.google_model = genai.GenerativeModel('gemini-1.5-flash')
+        else:
+            self.google_model = None
+        
+        if not self.api_keys and not self.google_model:
+            raise ValueError("No API keys found!")
         
         self.current_key_index = 0
-        self._init_client()
-        self.models = self._get_best_free_models()
+        if self.api_keys:
+            self._init_client()
+            self.models = self._get_best_free_models()
+        else:
+            self.client = None
+            self.models = []
 
     def _init_client(self):
         """Initialize OpenAI client with current key."""
@@ -54,6 +74,30 @@ class DirectorAgent:
             self._init_client()
             return True
         return False
+
+    def _generate_with_google_ai(self, system_prompt: str, user_prompt: str, sections: list) -> dict:
+        """Fallback to Google AI Studio (Gemini) when OpenRouter fails."""
+        if not self.google_model:
+            return None
+            
+        logging.info("🌟 Director: Trying Google AI Studio (Gemini) as fallback...")
+        try:
+            full_prompt = f"{system_prompt}\n\n{user_prompt}"
+            response = self.google_model.generate_content(full_prompt)
+            
+            text = response.text
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
+            
+            result = json.loads(text.strip())
+            logging.info("✅ Director: Google AI Studio succeeded!")
+            return result
+            
+        except Exception as e:
+            logging.error(f"❌ Director: Google AI Studio failed: {e}")
+            return {"mood": "Peaceful", "scenes": {k: "Abstract golden particles slow motion" for k in sections}}
 
     def _get_best_free_models(self) -> list:
         """Discovers best free models on OpenRouter."""
@@ -168,8 +212,14 @@ class DirectorAgent:
                 # All models exhausted
                 break
         
-        # Fallback visuals if all models and keys fail
-        logging.error("❌ All Director models/keys failed. Using fallback visuals.")
+        # FINAL FALLBACK: Try Google AI Studio
+        logging.warning("⚠️ Director: All OpenRouter models/keys exhausted. Trying Google AI...")
+        google_result = self._generate_with_google_ai(system_prompt, user_prompt, sections)
+        if google_result:
+            return google_result
+        
+        # Ultimate fallback visuals
+        logging.error("❌ All Director models/keys/fallbacks failed. Using hardcoded visuals.")
         return {
             "mood": "Peaceful",
             "scenes": {k: "Abstract golden particles slow motion" for k in sections}
