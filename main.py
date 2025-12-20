@@ -24,8 +24,19 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
     print(f"\n🎬 STARTING PRODUCTION: {title_suffix}...")
     scenes = []
     
+    # Get the Rashi-specific image path
+    rashi_image_path = editor.get_rashi_image_path(rashi)
+    if rashi_image_path:
+        print(f"   🖼️ Using Rashi Image: {rashi_image_path}")
+    else:
+        print(f"   ⚠️ No Rashi image found for: {rashi}")
+    
+    # Create Intro Scene with Rashi Image (3 seconds)
+    print(f"\n   📍 Creating INTRO scene with {rashi} image...")
+    intro_clip = editor.create_intro_scene(rashi, rashi_image_path, duration=3.0)
+    scenes.append(intro_clip)
+    
     # Define order of sections to ensure flow
-    # Common sections first, then specifics
     priority_order = ["hook", "intro", "love", "career", "money", "health", "remedy", "lucky_color", "lucky_number", "lucky_dates", "lucky_months"]
     
     # Visual Mapping Fallbacks
@@ -46,7 +57,7 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
     for section in priority_order:
         if section not in script: continue
         
-        text = str(script[section]) # Ensure it's string
+        text = str(script[section])
         if not text or len(text) < 5: continue
             
         visual_query = visual_map.get(section, "calm abstract background")
@@ -74,9 +85,15 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
         # B. Video Asset
         video_path = fetcher.search_video(visual_query, min_duration=int(duration))
         
-        # C. Create Clip with Subtitles
+        # C. Create Clip with Subtitles AND Rashi Image overlay
         subtitle_path = audio_path.replace(".mp3", ".json")
-        clip = editor.create_scene(video_path, text, duration, subtitle_path=subtitle_path)
+        clip = editor.create_scene(
+            video_path, 
+            text, 
+            duration, 
+            subtitle_path=subtitle_path,
+            rashi_image_path=rashi_image_path  # Pass Rashi image for overlay
+        )
         
         # Attach Audio
         if hasattr(audio_clip, 'set_duration'):
@@ -93,8 +110,8 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
     output_filename = f"outputs/{rashi.split()[0]}_{title_suffix}.mp4"
     os.makedirs("outputs", exist_ok=True)
     
-    # Identify Watermark
-    icon_path = f"assets/zodiac_icons/{rashi}.png"
+    # Identify Watermark (zodiac icon if exists)
+    icon_path = f"assets/zodiac_icons/{rashi.split()[0].lower()}.png"
     
     editor.assemble_final(scenes, output_filename, watermark_path=icon_path)
     print(f"\n✅ CREATED: {output_filename}")
@@ -108,7 +125,7 @@ def main():
     # Initialize Agents Once
     agents = {
         'astrologer': AstrologerAgent(),
-        'director': DirectorAgent(), # kept for future advanced screenplays
+        'director': DirectorAgent(),
         'narrator': NarratorAgent(),
         'fetcher': StockFetcher(),
         'editor': EditorEngine()
@@ -140,10 +157,8 @@ def main():
         daily_success = True
     except Exception as e:
         print(f"❌ Daily Video Failed: {e}")
-        # traceback.print_exc() # Useful if imported
 
     # --- 2. MONTHLY VIDEO (Run on 1st of Month) ---
-    # For testing, you can force this by commenting out the 'if' condition
     if today.day == 1: 
         try:
             print(f"\n📅 It is the 1st of the month! Generating MONTHLY Horoscope for {month_year}...")
