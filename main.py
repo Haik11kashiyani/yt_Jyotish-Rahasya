@@ -86,7 +86,7 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
         
     if not scenes:
         print("❌ No scenes created.")
-        return
+        raise Exception("No scenes created.")
 
     # Final Assembly
     print(f"\n🎞️ Assembling Final Master: {title_suffix}")
@@ -126,6 +126,7 @@ def main():
     print("="*60 + "\n")
     
     # --- 1. DAILY VIDEO (Always Run) ---
+    daily_success = False
     try:
         print("🔮 Generating DAILY Horoscope...")
         daily_script = agents['astrologer'].generate_daily_rashifal(args.rashi, date_str)
@@ -136,8 +137,10 @@ def main():
             daily_script, 
             date_str
         )
+        daily_success = True
     except Exception as e:
         print(f"❌ Daily Video Failed: {e}")
+        # traceback.print_exc() # Useful if imported
 
     # --- 2. MONTHLY VIDEO (Run on 1st of Month) ---
     # For testing, you can force this by commenting out the 'if' condition
@@ -169,6 +172,11 @@ def main():
             )
         except Exception as e:
             print(f"❌ Yearly Video Failed: {e}")
+            
+    # CRITICAL: Exit with error if Daily video failed
+    if not daily_success:
+        print("\n❌ CRITICAL: Daily Video Production Failed.")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
