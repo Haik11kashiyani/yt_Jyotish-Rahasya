@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import asyncio
 import logging
@@ -34,7 +35,7 @@ def main():
         if not script: raise Exception("Script Generation Failed")
     except Exception as e:
         print(f"❌ Astrologer Agent Error: {e}")
-        return
+        sys.exit(1)
 
     # 2. The Director (Visuals)
     try:
@@ -96,7 +97,7 @@ def main():
         
     if not scenes:
         print("❌ No scenes created.")
-        return
+        sys.exit(1)
 
     # 4. Final Assembly
     print(f"\n🎞️ Assembling Final Master...")
