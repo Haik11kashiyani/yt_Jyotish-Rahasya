@@ -94,47 +94,11 @@ class AstrologerAgent:
             # Fallback hardcoded list
             return ["google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.3-70b-instruct:free"]
 
-    def generate_daily_rashifal(self, rashi: str, date: str) -> dict:
-        """
-        Generates a detailed daily horoscope for a specific Rashi.
-        Returns a JSON structure with script sections.
-        """
-        logging.info(f"✨ Astrologer: Casting chart for {rashi} on {date}...")
-        
-        system_prompt = """
-        You are 'Rishiraj', an expert Vedic Astrologer (Jyotish Acharya) with 25 years of experience.
-        You perform deep calculations of Gochar (Planetary Transits), Nakshatras, and Yogas.
-        
-        Your task is to write a Daily Horoscope Script for a YouTube Video in HINDI.
-        The tone should be: Mystical, Authoritative, yet Caring and Positive.
-        
-        CRITICAL RULES:
-        1. Use PURE HINDI (Devanagari script). No Hinglish.
-        2. Reference specific astrological events (e.g., "Moon in Bharni Nakshatra").
-        3. Do NOT mention dates in the script text (so it stays evergreen).
-        4. Organize the output strictly as a JSON object.
-        """
-        
-        user_prompt = f"""
-        Generate a Daily Horoscope for **{rashi} (Rashi)** for the date **{date}**.
-
-        Return ONLY a raw JSON object with this exact structure:
-        {{
-            "hook": "A short, powerful opening sentence to grab attention (Hindi). E.g., 'Warning about money...'",
-            "intro": "Greeting and astrological analysis (Gochar/Nakshatra impact) (2 sentences).",
-            "love": "Prediction for Love/Relationship (2 sentences).",
-            "career": "Prediction for Career/Business (2 sentences).",
-            "money": "Prediction for Finance (2 sentences).",
-            "health": "Prediction for Health (1 sentence).",
-            "remedy": "A powerful, simple Vedic Upay (Remedy) for the day.",
-            "lucky_color": "One color name.",
-            "lucky_number": "One number."
-        }}
-        """
-
+    def _generate_script(self, rashi: str, date: str, period_type: str, system_prompt: str, user_prompt: str) -> dict:
+        """Helper to try models in rotation."""
         errors = []
         for model in self.models:
-            logging.info(f"🤖 Casting chart using: {model}")
+            logging.info(f"🤖 Casting {period_type} chart using: {model}")
             try:
                 response = self.client.chat.completions.create(
                     model=model,
@@ -154,7 +118,86 @@ class AstrologerAgent:
                 continue # Try next model
         
         logging.error(f"❌ All models failed: {errors}")
-        raise Exception(f"All models failed. Errors: {errors}")
+        raise Exception(f"All models failed to generate {period_type}. Errors: {errors}")
+
+    def generate_daily_rashifal(self, rashi: str, date: str) -> dict:
+        """Generates Daily Horoscope."""
+        logging.info(f"✨ Astrologer: Generating Daily Horoscope for {rashi}...")
+        
+        system_prompt = """
+        You are 'Rishiraj', an expert Vedic Astrologer. Tone: Mystical, Positive, Authoritative.
+        Write a DAILY Horoscope Script in PURE HINDI.
+        Do NOT mention specific dates.
+        """
+        
+        user_prompt = f"""
+        Generate a **Daily Horoscope** for **{rashi}** for {date}.
+        Return ONLY valid JSON:
+        {{
+            "hook": "Short attention grabber (Hindi)",
+            "intro": "Astrological context (Gochar)",
+            "love": "Love prediction",
+            "career": "Career prediction",
+            "money": "Financial prediction",
+            "health": "Health prediction",
+            "remedy": "Specific Vedic remedy",
+            "lucky_color": "Color",
+            "lucky_number": "Number"
+        }}
+        """
+        return self._generate_script(rashi, date, "Daily", system_prompt, user_prompt)
+
+    def generate_monthly_forecast(self, rashi: str, month_year: str) -> dict:
+        """Generates Monthly Horoscope (Detailed)."""
+        logging.info(f"✨ Astrologer: Generating Monthly Horoscope for {rashi} ({month_year})...")
+        
+        system_prompt = """
+        You are 'Rishiraj', an expert Vedic Astrologer. Tone: Detailed, Predictive, Guiding.
+        Write a MONTHLY Horoscope Script in PURE HINDI.
+        Focus on major planetary shifts (Sun transit, Moon phases).
+        """
+        
+        user_prompt = f"""
+        Generate a **Monthly Horoscope** for **{rashi}** for **{month_year}**.
+        Return ONLY valid JSON:
+        {{
+            "hook": "Major theme of the month (Hindi)",
+            "intro": "Overview of the month & planetary changes",
+            "love": "Detailed Relationship forecast",
+            "career": "Detailed Career & Business forecast",
+            "money": "Financial opportunities & risks",
+            "health": "Health warnings",
+            "remedy": "Major monthly remedy (Upay)",
+            "lucky_dates": "List of lucky dates"
+        }}
+        """
+        return self._generate_script(rashi, month_year, "Monthly", system_prompt, user_prompt)
+
+    def generate_yearly_forecast(self, rashi: str, year: str) -> dict:
+        """Generates Yearly 2025+ Horoscope (Grand)."""
+        logging.info(f"✨ Astrologer: Generating Yearly Horoscope for {rashi} ({year})...")
+        
+        system_prompt = """
+        You are 'Rishiraj', the Grand Vedic Astrologer. Tone: Epic, Visionary, Comprehensive.
+        Write a YEARLY 'Varshiphal' Script in PURE HINDI.
+        Focus on Jupiter (Guru), Saturn (Shani), and Rahu/Ketu transits.
+        """
+        
+        user_prompt = f"""
+        Generate a **Yearly Horoscope** for **{rashi}** for the year **{year}**.
+        Return ONLY valid JSON:
+        {{
+            "hook": "The biggest theme of the year (Hindi)",
+            "intro": "Grand overview of 2025 for this sign",
+            "love": "Love life analysis for the whole year",
+            "career": "Career growth analysis",
+            "money": "Wealth accumulation forecast",
+            "health": "Major health periods to watch",
+            "remedy": "Maha-Upay (Grand Remedy) for the year",
+            "lucky_months": "Best months of the year"
+        }}
+        """
+        return self._generate_script(rashi, year, "Yearly", system_prompt, user_prompt)
 
 # Test Run (Uncomment to test)
 # if __name__ == "__main__":
