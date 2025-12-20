@@ -213,14 +213,16 @@ class EditorEngine:
         return final_clip
     
     def _generate_subtitle_clip(self, subtitle_path: str, duration: float) -> CompositeVideoClip:
-        """Generates dynamic subtitle clips from JSON with LARGE text (no dark background)."""
+        """Generates dynamic subtitle clips from JSON with LARGE text and dark background."""
         import json
         with open(subtitle_path, 'r', encoding='utf-8') as f:
             subs = json.load(f)
             
         text_clips = []
         
-        # NO dark background - just text with stroke for visibility
+        # Semi-transparent dark background bar for subtitles (restored)
+        bg_clip = ColorClip(size=(self.width, 350), color=(0,0,0), duration=duration)
+        bg_clip = bg_clip.set_opacity(0.6).set_position((0, self.height - 350))
         
         for sub in subs:
             word = sub['text']
@@ -232,10 +234,8 @@ class EditorEngine:
             clip = ImageClip(img_path).set_start(start).set_duration(dur)
             clip = clip.set_position(("center", self.height - 280))
             text_clips.append(clip)
-        
-        # Create transparent base
-        base = ColorClip(size=(self.width, self.height), color=(0,0,0), duration=duration).set_opacity(0)
-        return CompositeVideoClip([base] + text_clips, size=(self.width, self.height))
+            
+        return CompositeVideoClip([bg_clip] + text_clips, size=(self.width, self.height))
 
     def _render_text_pill(self, text: str) -> str:
         """Renders LARGE text snippet to image - for individual subtitle words."""
@@ -261,12 +261,13 @@ class EditorEngine:
         return temp_path
 
     def _generate_text_image(self, text: str) -> str:
-        """Helper to render Hindi text to image using PIL - LARGE SIZE with stroke (no dark background)."""
+        """Helper to render Hindi text to image using PIL - LARGE SIZE with dark background."""
         img_w, img_h = 1080, 500 
-        img = Image.new('RGBA', (img_w, img_h), (0, 0, 0, 0))  # Fully transparent
+        img = Image.new('RGBA', (img_w, img_h), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         
-        # NO dark background - just text with stroke
+        # Dark semi-transparent background (restored)
+        draw.rectangle([30, 30, img_w-30, img_h-30], fill=(0, 0, 0, 160))
         
         try:
             font = ImageFont.truetype(self.font_path, 72) # LARGER FONT SIZE
@@ -306,8 +307,8 @@ class EditorEngine:
         img.save(temp_path)
         return temp_path
 
-    def assemble_final(self, clips: list, output_path: str, watermark_path: str = None):
-        """Concatenates prepared clips and adds background music."""
+    def assemble_final(self, clips: list, output_path: str, watermark_path: str = None, mood: str = "peaceful"):
+        """Concatenates prepared clips and adds mood-based background music."""
         if not clips:
             return
             
@@ -317,9 +318,9 @@ class EditorEngine:
         if watermark_path and os.path.exists(watermark_path):
              final_video = self.apply_watermark(final_video, watermark_path)
         
-        # Add Background Music
-        bg_music_path = "assets/music/bg.mp3"
-        if os.path.exists(bg_music_path):
+        # Add Mood-Based Background Music
+        bg_music_path = self._select_music_by_mood(mood)
+        if bg_music_path and os.path.exists(bg_music_path):
             try:
                 bg_music = AudioFileClip(bg_music_path)
                 if bg_music.duration < final_video.duration:
@@ -327,16 +328,61 @@ class EditorEngine:
                 else:
                     bg_music = bg_music.subclip(0, final_video.duration)
                 
-                bg_music = bg_music.volumex(0.15)
+                # Mild volume (12% - subtle background)
+                bg_music = bg_music.volumex(0.12)
                 
                 if final_video.audio:
                     final_audio = CompositeAudioClip([final_video.audio, bg_music])
                     final_video = final_video.set_audio(final_audio)
                 else:
                     final_video = final_video.set_audio(bg_music)
-                logging.info("   🎵 Background music added.")
+                logging.info(f"   🎵 Background music added (mood: {mood})")
             except Exception as e:
                 logging.error(f"   ⚠️ Could not add background music: {e}")
+    
+    def _select_music_by_mood(self, mood: str) -> str:
+        """Selects appropriate background music based on content mood."""
+        import random
+        
+        # Music folder structure: assets/music/<mood>/
+        mood_lower = mood.lower() if mood else "peaceful"
+        
+        # Map mood keywords to folder names
+        mood_map = {
+            "mysterious": "mysterious",
+            "dark": "mysterious",
+            "energetic": "upbeat",
+            "positive": "upbeat",
+            "peaceful": "peaceful",
+            "calm": "peaceful",
+            "spiritual": "spiritual",
+            "devotional": "spiritual"
+        }
+        
+        folder_name = mood_map.get(mood_lower, "peaceful")
+        music_folder = os.path.join("assets", "music", folder_name)
+        
+        # Fallback to root music folder
+        if not os.path.exists(music_folder):
+            music_folder = os.path.join("assets", "music")
+        
+        # Find all music files
+        music_files = []
+        if os.path.exists(music_folder):
+            for f in os.listdir(music_folder):
+                if f.endswith(('.mp3', '.wav', '.m4a')):
+                    music_files.append(os.path.join(music_folder, f))
+        
+        # Also check bg.mp3 as fallback
+        default_bg = os.path.join("assets", "music", "bg.mp3")
+        if not music_files and os.path.exists(default_bg):
+            return default_bg
+        
+        # Pick random from mood folder
+        if music_files:
+            return random.choice(music_files)
+        
+        return None
         
         fps = final_video.fps if hasattr(final_video, 'fps') and final_video.fps else 24
 

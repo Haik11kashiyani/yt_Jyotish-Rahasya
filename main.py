@@ -19,10 +19,16 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
     """
     Orchestrates the production of a single video from a script.
     """
-    narrator, fetcher, editor = agents['narrator'], agents['fetcher'], agents['editor']
+    narrator, fetcher, editor, director = agents['narrator'], agents['fetcher'], agents['editor'], agents['director']
     
     print(f"\n🎬 STARTING PRODUCTION: {title_suffix}...")
     scenes = []
+    
+    # Use Director to analyze script and get mood for music
+    print(f"   🎬 Director analyzing content mood...")
+    screenplay = director.create_screenplay(script)
+    content_mood = screenplay.get("mood", "peaceful")
+    print(f"   🎵 Detected mood: {content_mood}")
     
     # Get the Rashi-specific image path
     rashi_image_path = editor.get_rashi_image_path(rashi)
@@ -113,7 +119,8 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
     # Identify Watermark (zodiac icon if exists)
     icon_path = f"assets/zodiac_icons/{rashi.split()[0].lower()}.png"
     
-    editor.assemble_final(scenes, output_filename, watermark_path=icon_path)
+    # Pass mood from Director to Editor for music selection
+    editor.assemble_final(scenes, output_filename, watermark_path=icon_path, mood=content_mood)
     print(f"\n✅ CREATED: {output_filename}")
 
 
