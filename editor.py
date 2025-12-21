@@ -260,20 +260,8 @@ class EditorEngine:
                     with open(p, 'wb') as file: file.write(r.content)
         except Exception as e:
             logging.warning(f"   ⚠️ Could not download music: {e}")
-        if not matching_music:
-            if "energetic" in mood_lower or "happy" in mood_lower:
-                matching_music = [f for f in all_music if "upbeat" in f.lower() or "fast" in f.lower()]
-            elif "peaceful" in mood_lower or "calm" in mood_lower:
-                matching_music = [f for f in all_music if "ambient" in f.lower() or "soft" in f.lower()]
-            elif "mysterious" in mood_lower:
-                matching_music = [f for f in all_music if "dark" in f.lower() or "slow" in f.lower()]
-        
-        # If still no match, pick random but prefer not 'intro' or 'outro' specific tracks if possible
-        if not matching_music:
-            logging.warning(f"   ⚠️ No specific music found for mood '{mood}', picking random.")
-            target_list = all_music
-        else:
-            target_list = matching_music
-            
-        selected = random.choice(target_list)
-        return os.path.join(music_folder, selected)
+
+# Helper for concatenate to avoid circular dependencies if any
+def run_concatenate(clips):
+    from moviepy.editor import concatenate_videoclips
+    return concatenate_videoclips(clips, method="compose")
