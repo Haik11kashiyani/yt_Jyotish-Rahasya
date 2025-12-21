@@ -24,16 +24,32 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
     print(f"\n🎬 STARTING PRODUCTION: {title_suffix}...")
     scenes = []
     
+    # Debug: Show what script format we received
+    print(f"   📋 Script type: {type(script).__name__}")
+    if isinstance(script, dict):
+        print(f"   📋 Script keys: {list(script.keys())}")
+    elif isinstance(script, list):
+        print(f"   📋 Script has {len(script)} items")
+        # Convert list to dict if needed
+        script = {"content": " ".join(str(s) for s in script)}
+    
     # Use Director to analyze script and get mood for music
     print(f"   🎬 Director analyzing content mood...")
     screenplay = director.create_screenplay(script)
-    content_mood = screenplay.get("mood", "peaceful")
+    content_mood = screenplay.get("mood", "peaceful") if isinstance(screenplay, dict) else "peaceful"
     print(f"   🎵 Detected mood: {content_mood}")
     
     # Define order of sections to ensure flow
     priority_order = ["hook", "intro", "love", "career", "money", "health", "remedy", "lucky_color", "lucky_number", "lucky_dates", "lucky_months"]
+    
+    # If script doesn't have standard sections, create one combined section
+    found_sections = [s for s in priority_order if s in script]
+    if not found_sections and isinstance(script, dict):
+        # Fallback: use all keys from script as sections
+        found_sections = list(script.keys())
+        print(f"   ⚠️ Using all script keys as sections: {found_sections}")
 
-    for section in priority_order:
+    for section in priority_order + [k for k in script.keys() if k not in priority_order]:
         if section not in script: 
             continue
         
