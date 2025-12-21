@@ -185,6 +185,16 @@ class EditorEngine:
         # Use simple concatenate for performance
         final_video = run_concatenate(scenes) 
         
+        # --- STRICT 59 SECOND LIMIT ---
+        MAX_DURATION = 59.0
+        if final_video.duration > MAX_DURATION:
+            logging.warning(f"⚠️ Video duration {final_video.duration}s exceeds {MAX_DURATION}s. Trimming...")
+            # We trim from the end (preserving hook/intro)
+            final_video = final_video.subclip(0, MAX_DURATION)
+            # Add a quick fade out at the end so it doesn't cut abruptly
+            final_video = final_video.fadeout(0.5)
+        # ------------------------------ 
+        
         # Add background music
         bg_music_path = self._select_music_by_mood(mood)
         if bg_music_path and os.path.exists(bg_music_path):

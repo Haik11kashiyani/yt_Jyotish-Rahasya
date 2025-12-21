@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=1080, height=1920, initial-scale=1.0">
     <title>Video Scene</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;700&display=swap"
+        rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <style>
         body {
@@ -28,7 +30,7 @@
             background: linear-gradient(45deg, var(--c1, #303060), var(--c2, #101020));
             z-index: 1;
         }
-        
+
         /* Particle Overlay */
         #particles {
             position: absolute;
@@ -58,12 +60,13 @@
             width: 100%;
             height: auto;
             max-height: 100%;
-            filter: drop-shadow(0 20px 40px rgba(0,0,0,0.5));
+            filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.5));
         }
 
         #text-container {
             position: absolute;
-            bottom: 400px;
+            top: 1100px;
+            /* Fixed static top position */
             left: 50%;
             transform: translateX(-50%);
             width: 900px;
@@ -73,14 +76,22 @@
             font-size: 60px;
             font-weight: 700;
             line-height: 1.4;
-            text-shadow: 0 4px 10px rgba(0,0,0,0.6);
-            
+            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+
             /* Glassmorphism */
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             padding: 40px;
             border-radius: 30px;
             border: 1px solid rgba(255, 255, 255, 0.1);
+
+            /* Ensure it doesn't grow indefinitely */
+            height: 600px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            align-content: center;
+            flex-wrap: wrap;
         }
 
         .word {
@@ -93,15 +104,17 @@
         .word.active {
             opacity: 1;
             transform: scale(1.1);
-            color: #FFD700; /* Gold */
-            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            color: #FFD700;
+            /* Gold */
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.8), 0 0 10px rgba(255, 255, 255, 0.8);
         }
     </style>
 </head>
+
 <body>
     <div id="background"></div>
     <div id="particles"></div>
-    
+
     <div id="rashi-container">
         <img id="rashi-image" src="" alt="Rashi">
     </div>
@@ -117,7 +130,7 @@
         const text = urlParams.get('text') || "";
         const c1 = urlParams.get('c1') || "#303060";
         const c2 = urlParams.get('c2') || "#101020";
-        
+
         // --- SETUP ---
         if (rashiImg) document.getElementById('rashi-image').src = rashiImg;
         document.body.style.setProperty('--c1', c1);
@@ -136,15 +149,16 @@
         tl.to("#background", {
             x: "-10%",
             y: "-10%",
-            duration: 60, // Arbitrary long duration, we'll seek relative to scene duration
+            duration: 60,
             ease: "none"
         }, 0);
 
-        // 2. Rashi Breathing (Looping handled by modulation)
-        // We'll just animate a simple scale up/down
+        // 2. Rashi Premium Float & Glow (Different than breathing)
+        // Float Up/Down + Glow Pulse
         tl.to("#rashi-image", {
-            scale: 1.05,
-            duration: 3,
+            y: -30,
+            filter: "drop-shadow(0 0 50px rgba(255, 215, 0, 0.6))",
+            duration: 4,
             repeat: 20,
             yoyo: true,
             ease: "sine.inOut"
@@ -152,7 +166,7 @@
 
         // 3. Text Karaoke (If duration provided)
         // We can expose a function to highlight words
-        
+
         window.setWordActive = (index) => {
             wordEls.forEach((el, i) => {
                 if (i === index) el.classList.add('active');
@@ -166,4 +180,5 @@
         };
     </script>
 </body>
+
 </html>
