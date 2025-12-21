@@ -1,14 +1,13 @@
 import os
 import sys
 import argparse
-import asyncio
+import json
 import logging
 from datetime import datetime
 
 from agents.astrologer import AstrologerAgent
 from agents.director import DirectorAgent
 from agents.narrator import NarratorAgent
-from agents.stock_fetcher import StockFetcher
 from editor import EditorEngine
 from moviepy.editor import AudioFileClip
 
@@ -18,8 +17,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
     """
     Orchestrates the production of a single video from a script.
+    Uses gradient Rashi-themed backgrounds with karaoke text (no Pexels API).
     """
-    narrator, fetcher, editor, director = agents['narrator'], agents['fetcher'], agents['editor'], agents['director']
+    narrator, editor, director = agents['narrator'], agents['editor'], agents['director']
     
     print(f"\n🎬 STARTING PRODUCTION: {title_suffix}...")
     scenes = []
@@ -30,82 +30,59 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
     content_mood = screenplay.get("mood", "peaceful")
     print(f"   🎵 Detected mood: {content_mood}")
     
-    # Get the Rashi-specific image path
-    rashi_image_path = editor.get_rashi_image_path(rashi)
-    if rashi_image_path:
-        print(f"   🖼️ Using Rashi Image: {rashi_image_path}")
-    else:
-        print(f"   ⚠️ No Rashi image found for: {rashi}")
-    
-    # Create Intro Scene with Rashi Image (3 seconds)
-    print(f"\n   📍 Creating INTRO scene with {rashi} image...")
-    intro_clip = editor.create_intro_scene(rashi, rashi_image_path, duration=3.0)
-    scenes.append(intro_clip)
-    
     # Define order of sections to ensure flow
     priority_order = ["hook", "intro", "love", "career", "money", "health", "remedy", "lucky_color", "lucky_number", "lucky_dates", "lucky_months"]
-    
-    # Visual Mapping Fallbacks
-    visual_map = {
-        "hook": "dramatic mystical nebula",
-        "intro": "peaceful sunrise himalayas",
-        "love": "romantic couple silhouette sunset",
-        "career": "modern office city timelapse or success",
-        "money": "gold coins falling slow motion luxury",
-        "health": "yoga healthy lifestyle nature",
-        "remedy": "hindu temple diya praying",
-        "lucky_color": "abstract color background artistic",
-        "lucky_number": "numerology mathematics abstract",
-        "lucky_dates": "calendar pages turning",
-        "lucky_months": "seasons changing time lapse"
-    }
 
     for section in priority_order:
-        if section not in script: continue
+        if section not in script: 
+            continue
         
         text = str(script[section])
-        if not text or len(text) < 5: continue
-            
-        visual_query = visual_map.get(section, "calm abstract background")
+        if not text or len(text) < 5: 
+            continue
         
         print(f"\n   📍 Section: {section.upper()}")
-        print(f"      📜 Script: {text[:40]}...")
+        print(f"      📜 Script: {text[:50]}...")
         
-        # A. Voiceover
+        # A. Generate Voiceover
         os.makedirs(f"assets/temp/{title_suffix}", exist_ok=True)
         audio_path = f"assets/temp/{title_suffix}/{section}.mp3"
+        subtitle_path = audio_path.replace(".mp3", ".json")
+        
         narrator.speak(text, audio_path)
         
         if not os.path.exists(audio_path):
-            print("      ⚠️ Audio generation failed, skipping.")
+            print("      ⚠️ Audio generation failed, skipping section.")
             continue
             
-        # Get Duration
+        # B. Get Duration from Audio
         try:
             audio_clip = AudioFileClip(audio_path)
-            duration = audio_clip.duration + 0.5 
+            duration = audio_clip.duration + 0.3  # Small buffer
         except Exception as e:
             print(f"      ⚠️ Audio read error: {e}")
             duration = 5.0
+            audio_clip = None
         
-        # B. Video Asset
-        video_path = fetcher.search_video(visual_query, min_duration=int(duration))
+        # C. Load subtitle data for karaoke effect
+        subtitle_data = None
+        if os.path.exists(subtitle_path):
+            try:
+                with open(subtitle_path, 'r', encoding='utf-8') as f:
+                    subtitle_data = json.load(f)
+                print(f"      🎤 Loaded {len(subtitle_data)} karaoke words")
+            except:
+                subtitle_data = None
         
-        # C. Create Clip with Subtitles AND Rashi Image overlay
-        subtitle_path = audio_path.replace(".mp3", ".json")
-        clip = editor.create_scene(
-            video_path, 
-            text, 
-            duration, 
-            subtitle_path=subtitle_path,
-            rashi_image_path=rashi_image_path  # Pass Rashi image for overlay
-        )
+        # D. Create Scene with Gradient Background + Rashi Image + Karaoke Text
+        clip = editor.create_scene(rashi, text, duration, subtitle_data=subtitle_data)
         
-        # Attach Audio
-        if hasattr(audio_clip, 'set_duration'):
-           clip = clip.set_audio(audio_clip)
+        # E. Attach Audio
+        if audio_clip:
+            clip = clip.set_audio(audio_clip)
         
         scenes.append(clip)
+        print(f"      ✅ Scene created: {duration:.1f}s")
         
     if not scenes:
         print("❌ No scenes created.")
@@ -116,11 +93,8 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
     output_filename = f"outputs/{rashi.split()[0]}_{title_suffix}.mp4"
     os.makedirs("outputs", exist_ok=True)
     
-    # Identify Watermark (zodiac icon if exists)
-    icon_path = f"assets/zodiac_icons/{rashi.split()[0].lower()}.png"
-    
-    # Pass mood from Director to Editor for music selection
-    editor.assemble_final(scenes, output_filename, watermark_path=icon_path, mood=content_mood)
+    # Assemble with background music
+    editor.assemble_final(scenes, output_filename, mood=content_mood)
     print(f"\n✅ CREATED: {output_filename}")
 
 
@@ -129,12 +103,11 @@ def main():
     parser.add_argument("--rashi", type=str, default="Mesh (Aries)", help="Target Rashi")
     args = parser.parse_args()
     
-    # Initialize Agents Once
+    # Initialize Agents (No StockFetcher needed anymore!)
     agents = {
         'astrologer': AstrologerAgent(),
         'director': DirectorAgent(),
         'narrator': NarratorAgent(),
-        'fetcher': StockFetcher(),
         'editor': EditorEngine()
     }
     
@@ -147,6 +120,7 @@ def main():
     print(f"🌟 YT JYOTISH RAHASYA: Automation Engine 🌟")
     print(f"   Target: {args.rashi}")
     print(f"   Date: {date_str}")
+    print(f"   Style: Gradient Theme + Karaoke Text")
     print("="*60 + "\n")
     
     # --- 1. DAILY VIDEO (Always Run) ---
@@ -164,11 +138,13 @@ def main():
         daily_success = True
     except Exception as e:
         print(f"❌ Daily Video Failed: {e}")
+        import traceback
+        traceback.print_exc()
 
     # --- 2. MONTHLY VIDEO (Run on 1st of Month) ---
     if today.day == 1: 
         try:
-            print(f"\n📅 It is the 1st of the month! Generating MONTHLY Horoscope for {month_year}...")
+            print(f"\n📅 It is the 1st! Generating MONTHLY Horoscope for {month_year}...")
             monthly_script = agents['astrologer'].generate_monthly_forecast(args.rashi, month_year)
             produce_video_from_script(
                 agents,

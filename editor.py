@@ -1,8 +1,9 @@
 import os
 import logging
-from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip, ImageClip, ColorClip, vfx, concatenate_videoclips, CompositeAudioClip
+import json
+from moviepy.editor import VideoFileClip, AudioFileClip, CompositeVideoClip, ImageClip, ColorClip, vfx, concatenate_videoclips, CompositeAudioClip
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
 # Monkeypatch ANTIALIAS for MoviePy compatibility with Pillow 10+
 if not hasattr(Image, 'ANTIALIAS'):
@@ -12,52 +13,71 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # Rashi name to filename mapping
 RASHI_IMAGE_MAP = {
-    "mesh": "mesh.jpg",
-    "aries": "mesh.jpg",
-    "vrushabh": "vrushabh.jpg",
-    "taurus": "vrushabh.jpg",
-    "mithun": "mithun.jpg",
-    "gemini": "mithun.jpg",
-    "kark": "kark.jpg",
-    "cancer": "kark.jpg",
-    "singh": "singh.jpg",
-    "leo": "singh.jpg",
-    "kanya": "kanya.jpg",
-    "virgo": "kanya.jpg",
-    "tula": "tula.jpg",
-    "libra": "tula.jpg",
-    "vrushchik": "vrushchik.jpg",
-    "scorpio": "vrushchik.jpg",
-    "dhanu": "dhanu.jpg",
-    "sagittarius": "dhanu.jpg",
-    "makar": "makar.jpg",
-    "capricorn": "makar.jpg",
-    "kumbh": "kumbh.jpg",
-    "aquarius": "kumbh.jpg",
-    "meen": "meen.jpg",
-    "pisces": "meen.jpg",
+    "mesh": "mesh.jpg", "aries": "mesh.jpg",
+    "vrushabh": "vrushabh.jpg", "taurus": "vrushabh.jpg",
+    "mithun": "mithun.jpg", "gemini": "mithun.jpg",
+    "kark": "kark.jpg", "cancer": "kark.jpg",
+    "singh": "singh.jpg", "leo": "singh.jpg",
+    "kanya": "kanya.jpg", "virgo": "kanya.jpg",
+    "tula": "tula.jpg", "libra": "tula.jpg",
+    "vrushchik": "vrushchik.jpg", "scorpio": "vrushchik.jpg",
+    "dhanu": "dhanu.jpg", "sagittarius": "dhanu.jpg",
+    "makar": "makar.jpg", "capricorn": "makar.jpg",
+    "kumbh": "kumbh.jpg", "aquarius": "kumbh.jpg",
+    "meen": "meen.jpg", "pisces": "meen.jpg",
+}
+
+# Rashi-themed gradient colors (top_color, bottom_color)
+RASHI_GRADIENTS = {
+    "mesh": ((180, 40, 40), (60, 10, 10)),       # Red/maroon (Aries - fire)
+    "aries": ((180, 40, 40), (60, 10, 10)),
+    "vrushabh": ((40, 120, 60), (15, 50, 25)),   # Green (Taurus - earth)
+    "taurus": ((40, 120, 60), (15, 50, 25)),
+    "mithun": ((200, 180, 50), (80, 60, 20)),    # Yellow (Gemini - air)
+    "gemini": ((200, 180, 50), (80, 60, 20)),
+    "kark": ((60, 80, 140), (20, 30, 60)),       # Blue (Cancer - water)
+    "cancer": ((60, 80, 140), (20, 30, 60)),
+    "singh": ((200, 100, 30), (80, 40, 10)),     # Orange (Leo - fire)
+    "leo": ((200, 100, 30), (80, 40, 10)),
+    "kanya": ((100, 140, 80), (40, 60, 30)),     # Olive green (Virgo - earth)
+    "virgo": ((100, 140, 80), (40, 60, 30)),
+    "tula": ((140, 100, 160), (50, 35, 60)),     # Purple (Libra - air)
+    "libra": ((140, 100, 160), (50, 35, 60)),
+    "vrushchik": ((100, 30, 40), (40, 10, 15)),  # Dark red (Scorpio - water)
+    "scorpio": ((100, 30, 40), (40, 10, 15)),
+    "dhanu": ((160, 80, 40), (60, 30, 15)),      # Brown/orange (Sagittarius - fire)
+    "sagittarius": ((160, 80, 40), (60, 30, 15)),
+    "makar": ((60, 60, 60), (25, 25, 25)),       # Gray (Capricorn - earth)
+    "capricorn": ((60, 60, 60), (25, 25, 25)),
+    "kumbh": ((40, 100, 160), (15, 40, 60)),     # Blue (Aquarius - air)
+    "aquarius": ((40, 100, 160), (15, 40, 60)),
+    "meen": ((80, 120, 140), (30, 50, 60)),      # Teal (Pisces - water)
+    "pisces": ((80, 120, 140), (30, 50, 60)),
 }
 
 class EditorEngine:
     """
-    Compiles the final video using MoviePy.
+    Creates clean, gradient-themed videos with Rashi images and karaoke-style text.
+    No external video API required - pure PIL/MoviePy generation.
     """
     
     def __init__(self):
         self.width = 1080
         self.height = 1920
-        self.font_path = "c:/Windows/Fonts/nirmala.ttf" # Standard Windows Hindi Font
+        self.font_path = "c:/Windows/Fonts/nirmala.ttf"
         if not os.path.exists(self.font_path):
-             self.font_path = "Arial" 
+            self.font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"  # Linux fallback
+        os.makedirs("assets/temp", exist_ok=True)
+
+    def _get_rashi_key(self, rashi_name: str) -> str:
+        """Extract rashi key from name like 'Mesh (Aries)'."""
+        rashi_key = rashi_name.lower().split()[0].split("(")[0].strip()
+        return rashi_key
 
     def get_rashi_image_path(self, rashi_name: str) -> str:
-        """
-        Finds the appropriate rashi image from the 12_photos folder.
-        """
-        # Extract first word and lowercase
-        rashi_key = rashi_name.lower().split()[0].split("(")[0].strip()
+        """Finds the appropriate rashi image from the 12_photos folder."""
+        rashi_key = self._get_rashi_key(rashi_name)
         
-        # Also check inside parenthesis e.g. "Mesh (Aries)" -> check "aries" too
         if "(" in rashi_name:
             alt_key = rashi_name.split("(")[1].replace(")", "").strip().lower()
         else:
@@ -73,63 +93,132 @@ class EditorEngine:
         logging.warning(f"Rashi image not found for: {rashi_name}")
         return None
 
-    def create_intro_scene(self, rashi_name: str, rashi_image_path: str, duration: float = 3.0) -> CompositeVideoClip:
+    def _create_gradient_image(self, rashi_name: str) -> str:
+        """Creates a gradient background image based on Rashi theme."""
+        rashi_key = self._get_rashi_key(rashi_name)
+        
+        colors = RASHI_GRADIENTS.get(rashi_key, ((30, 30, 60), (10, 10, 20)))
+        top_color, bottom_color = colors
+        
+        img = Image.new('RGB', (self.width, self.height))
+        draw = ImageDraw.Draw(img)
+        
+        # Create vertical gradient
+        for y in range(self.height):
+            ratio = y / self.height
+            r = int(top_color[0] * (1 - ratio) + bottom_color[0] * ratio)
+            g = int(top_color[1] * (1 - ratio) + bottom_color[1] * ratio)
+            b = int(top_color[2] * (1 - ratio) + bottom_color[2] * ratio)
+            draw.line([(0, y), (self.width, y)], fill=(r, g, b))
+        
+        # Add subtle vignette effect
+        for i in range(50):
+            alpha = int(255 * (1 - i / 50) * 0.3)
+            draw.rectangle([i, i, self.width - i, self.height - i], outline=(0, 0, 0, alpha))
+        
+        path = f"assets/temp/gradient_{rashi_key}.png"
+        img.save(path)
+        return path
+
+    def _create_rashi_with_shadow(self, rashi_image_path: str) -> str:
+        """Creates Rashi image with soft shadow effect."""
+        if not rashi_image_path or not os.path.exists(rashi_image_path):
+            return None
+            
+        rashi_img = Image.open(rashi_image_path).convert("RGBA")
+        
+        # Resize to fit (50% of width)
+        target_width = int(self.width * 0.5)
+        aspect = rashi_img.height / rashi_img.width
+        target_height = int(target_width * aspect)
+        
+        if target_height > self.height * 0.4:
+            target_height = int(self.height * 0.4)
+            target_width = int(target_height / aspect)
+        
+        rashi_img = rashi_img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+        
+        # Create shadow
+        shadow_offset = 15
+        shadow = Image.new('RGBA', (target_width + shadow_offset * 2, target_height + shadow_offset * 2), (0, 0, 0, 0))
+        shadow_draw = ImageDraw.Draw(shadow)
+        shadow_draw.rectangle([shadow_offset, shadow_offset, target_width + shadow_offset, target_height + shadow_offset], fill=(0, 0, 0, 100))
+        shadow = shadow.filter(ImageFilter.GaussianBlur(radius=20))
+        
+        # Combine
+        final = Image.new('RGBA', (target_width + shadow_offset * 2, target_height + shadow_offset * 2), (0, 0, 0, 0))
+        final.paste(shadow, (0, 0), shadow)
+        final.paste(rashi_img, (shadow_offset, shadow_offset), rashi_img)
+        
+        path = f"assets/temp/rashi_shadow_{hash(rashi_image_path)}.png"
+        final.save(path)
+        return path
+
+    def create_scene(self, rashi_name: str, text: str, duration: float, subtitle_data: list = None) -> CompositeVideoClip:
         """
-        Creates a professional intro scene with the Rashi image prominently displayed.
+        Creates a scene with:
+        - Gradient background themed to Rashi
+        - Rashi image centered with shadow
+        - Karaoke-style text at bottom
         """
         layers = []
         
-        # 1. Dark gradient background
-        bg = ColorClip(size=(self.width, self.height), color=(10, 10, 30), duration=duration)
-        layers.append(bg)
+        # 1. Gradient Background
+        gradient_path = self._create_gradient_image(rashi_name)
+        bg_clip = ImageClip(gradient_path).set_duration(duration)
+        layers.append(bg_clip)
         
-        # 2. Rashi Image (Large, Centered)
-        if rashi_image_path and os.path.exists(rashi_image_path):
-            rashi_img = Image.open(rashi_image_path)
-            
-            # Resize to fit nicely (60% of width, maintain aspect ratio)
-            target_width = int(self.width * 0.6)
-            aspect = rashi_img.height / rashi_img.width
-            target_height = int(target_width * aspect)
-            
-            # Cap height
-            if target_height > self.height * 0.5:
-                target_height = int(self.height * 0.5)
-                target_width = int(target_height / aspect)
-            
-            rashi_img = rashi_img.resize((target_width, target_height), Image.Resampling.LANCZOS)
-            
-            # Save temporarily
-            temp_path = "assets/temp/rashi_intro.png"
-            os.makedirs("assets/temp", exist_ok=True)
-            rashi_img.save(temp_path)
-            
-            img_clip = ImageClip(temp_path).set_duration(duration)
-            # Center horizontally, place in upper-middle
-            x_pos = (self.width - target_width) // 2
-            y_pos = int(self.height * 0.15)
-            img_clip = img_clip.set_position((x_pos, y_pos))
-            
-            # Add zoom effect
-            img_clip = img_clip.resize(lambda t: 1 + 0.05 * t)
-            
-            layers.append(img_clip)
+        # 2. Rashi Image with Shadow (centered, upper half)
+        rashi_image_path = self.get_rashi_image_path(rashi_name)
+        if rashi_image_path:
+            shadow_path = self._create_rashi_with_shadow(rashi_image_path)
+            if shadow_path:
+                rashi_clip = ImageClip(shadow_path).set_duration(duration)
+                # Position in upper-center area
+                rashi_clip = rashi_clip.set_position(("center", int(self.height * 0.15)))
+                layers.append(rashi_clip)
         
-        # 3. Rashi Name Text (Large, Below Image)
-        name_img_path = self._generate_intro_title(rashi_name)
-        name_clip = ImageClip(name_img_path).set_duration(duration)
-        name_clip = name_clip.set_position(("center", int(self.height * 0.72)))
-        layers.append(name_clip)
+        # 3. Karaoke Subtitles (word by word)
+        if subtitle_data:
+            subtitle_clips = self._create_karaoke_subtitles(subtitle_data, duration)
+            layers.extend(subtitle_clips)
+        else:
+            # Static text fallback
+            text_clip = self._create_static_text(text, duration)
+            layers.append(text_clip)
         
-        # Composite
-        intro = CompositeVideoClip(layers, size=(self.width, self.height))
-        intro = intro.crossfadein(0.5).crossfadeout(0.5)
-        
-        return intro
+        final = CompositeVideoClip(layers, size=(self.width, self.height))
+        return final
 
-    def _generate_intro_title(self, rashi_name: str) -> str:
-        """Generates large intro title text."""
-        img_w, img_h = 1080, 300
+    def _create_karaoke_subtitles(self, subtitle_data: list, total_duration: float) -> list:
+        """Creates karaoke-style word-by-word subtitles."""
+        clips = []
+        
+        for sub in subtitle_data:
+            word = sub.get('text', '')
+            start = sub.get('start', 0)
+            dur = sub.get('duration', 0.5)
+            
+            if not word.strip():
+                continue
+            
+            # Create word image
+            img_path = self._render_karaoke_word(word)
+            
+            clip = ImageClip(img_path).set_start(start).set_duration(dur)
+            # Position at bottom area
+            clip = clip.set_position(("center", self.height - 350))
+            
+            # Add fade effect
+            clip = clip.crossfadein(0.1).crossfadeout(0.1)
+            
+            clips.append(clip)
+        
+        return clips
+
+    def _render_karaoke_word(self, word: str) -> str:
+        """Renders a single word for karaoke display - large, glowing, visible."""
+        img_w, img_h = 1000, 200
         img = Image.new('RGBA', (img_w, img_h), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         
@@ -138,189 +227,76 @@ class EditorEngine:
         except:
             font = ImageFont.load_default()
         
-        # Draw text centered with golden color and shadow
-        bbox = draw.textbbox((0, 0), rashi_name, font=font)
+        # Get text size
+        bbox = draw.textbbox((0, 0), word, font=font)
         text_w = bbox[2] - bbox[0]
         x = (img_w - text_w) // 2
+        y = 40
         
-        # Shadow
-        draw.text((x + 3, 50 + 3), rashi_name, font=font, fill="#333333")
-        # Main text
-        draw.text((x, 50), rashi_name, font=font, fill="#FFD700", stroke_width=2, stroke_fill="#8B4513")
+        # Draw glow/shadow
+        for offset in range(5, 0, -1):
+            alpha = int(255 * (1 - offset / 5) * 0.5)
+            draw.text((x + offset, y + offset), word, font=font, fill=(0, 0, 0, alpha))
         
-        temp_path = "assets/temp/intro_title.png"
-        os.makedirs("assets/temp", exist_ok=True)
-        img.save(temp_path)
-        return temp_path
+        # Draw main text (bright yellow for visibility)
+        draw.text((x, y), word, font=font, fill="#FFDD00", stroke_width=3, stroke_fill="#000000")
+        
+        path = f"assets/temp/karaoke_{hash(word)}.png"
+        img.save(path)
+        return path
 
-    def create_scene(self, video_path: str, text: str, duration: float, subtitle_path: str = None, rashi_image_path: str = None) -> CompositeVideoClip:
-        """
-        Creates a single scene with video background, Rashi overlay, and LARGE text.
-        """
-        layers = []
-        
-        # 1. Background Video
-        if video_path and os.path.exists(video_path):
-            try:
-                clip = VideoFileClip(video_path)
-                if clip.duration < duration:
-                    clip = vfx.loop(clip, duration=duration)
-                else:
-                    clip = clip.subclip(0, duration)
-            except Exception as e:
-                logging.error(f"Error loading video {video_path}: {e}")
-                clip = ColorClip(size=(self.width, self.height), color=(20, 20, 30), duration=duration)
-        else:
-            clip = ColorClip(size=(self.width, self.height), color=(20, 20, 30), duration=duration)
-
-        # Resize to fill vertical screen
-        if hasattr(clip, 'h') and clip.h > 0:
-            aspect_ratio = clip.w / clip.h
-            target_ratio = self.width / self.height
-            
-            if aspect_ratio > target_ratio:
-                new_w = int(self.height * aspect_ratio)
-                clip = clip.resize(height=self.height)
-                clip = clip.crop(x1=new_w//2 - self.width//2, width=self.width)
-            else:
-                clip = clip.resize(width=self.width)
-                clip = clip.set_position("center")
-        
-        layers.append(clip)
-        
-        # 2. Rashi Image Overlay (Smaller, positioned top-right as identity)
-        if rashi_image_path and os.path.exists(rashi_image_path):
-            rashi_overlay = ImageClip(rashi_image_path).set_duration(duration)
-            rashi_overlay = rashi_overlay.resize(height=200) # Small overlay
-            rashi_overlay = rashi_overlay.set_position((self.width - 220, 20)) # Top-right
-            rashi_overlay = rashi_overlay.set_opacity(0.9)
-            layers.append(rashi_overlay)
-
-        # 3. Text Overlay (LARGE subtitles)
-        if subtitle_path and os.path.exists(subtitle_path):
-            txt_clip = self._generate_subtitle_clip(subtitle_path, duration)
-        else:
-            txt_img_path = self._generate_text_image(text)
-            txt_clip = ImageClip(txt_img_path).set_duration(duration)
-            txt_clip = txt_clip.set_position(("center", self.height - 550)) # Position at bottom
-        
-        layers.append(txt_clip)
-        
-        # Composite
-        final_clip = CompositeVideoClip(layers, size=(self.width, self.height))
-        final_clip = final_clip.crossfadein(0.3)
-        
-        return final_clip
-    
-    def _generate_subtitle_clip(self, subtitle_path: str, duration: float) -> CompositeVideoClip:
-        """Generates dynamic subtitle clips from JSON with LARGE text and dark background."""
-        import json
-        with open(subtitle_path, 'r', encoding='utf-8') as f:
-            subs = json.load(f)
-            
-        text_clips = []
-        
-        # Semi-transparent dark background bar for subtitles (restored)
-        bg_clip = ColorClip(size=(self.width, 350), color=(0,0,0), duration=duration)
-        bg_clip = bg_clip.set_opacity(0.6).set_position((0, self.height - 350))
-        
-        for sub in subs:
-            word = sub['text']
-            start = sub['start']
-            dur = sub['duration']
-            
-            img_path = self._render_text_pill(word)
-            
-            clip = ImageClip(img_path).set_start(start).set_duration(dur)
-            clip = clip.set_position(("center", self.height - 280))
-            text_clips.append(clip)
-            
-        return CompositeVideoClip([bg_clip] + text_clips, size=(self.width, self.height))
-
-    def _render_text_pill(self, text: str) -> str:
-        """Renders LARGE text snippet to image - for individual subtitle words."""
-        img_w, img_h = 1050, 250
-        img = Image.new('RGBA', (img_w, img_h), (0, 0, 0, 0))
+    def _create_static_text(self, text: str, duration: float) -> ImageClip:
+        """Creates static text as fallback when no subtitle data."""
+        img_w, img_h = self.width - 100, 400
+        img = Image.new('RGBA', (img_w, img_h), (0, 0, 0, 150))
         draw = ImageDraw.Draw(img)
         
         try:
-            font = ImageFont.truetype(self.font_path, 110) # MUCH LARGER FONT
+            font = ImageFont.truetype(self.font_path, 50)
         except:
             font = ImageFont.load_default()
-            
-        bbox = draw.textbbox((0,0), text, font=font)
-        text_w = bbox[2] - bbox[0]
-        x = (img_w - text_w) // 2
         
-        # Yellow text with thick black stroke for visibility
-        draw.text((x, 30), text, font=font, fill="#FFFF00", stroke_width=5, stroke_fill="black")
-        
-        temp_path = f"assets/temp/word_{hash(text)}.png"
-        os.makedirs("assets/temp", exist_ok=True)
-        img.save(temp_path)
-        return temp_path
-
-    def _generate_text_image(self, text: str) -> str:
-        """Helper to render Hindi text to image using PIL - LARGE SIZE with dark background."""
-        img_w, img_h = 1080, 500 
-        img = Image.new('RGBA', (img_w, img_h), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(img)
-        
-        # Dark semi-transparent background (restored)
-        draw.rectangle([30, 30, img_w-30, img_h-30], fill=(0, 0, 0, 160))
-        
-        try:
-            font = ImageFont.truetype(self.font_path, 72) # LARGER FONT SIZE
-        except:
-            font = ImageFont.load_default()
-
         # Word wrap
         words = text.split()
         lines = []
         current_line = []
-        
         for word in words:
-            current_line.append(word)
-            line_str = " ".join(current_line)
-            bbox = draw.textbbox((0,0), line_str, font=font)
-            if bbox[2] > img_w - 100:
-                current_line.pop()
-                lines.append(" ".join(current_line))
+            test_line = ' '.join(current_line + [word])
+            bbox = draw.textbbox((0, 0), test_line, font=font)
+            if bbox[2] - bbox[0] < img_w - 80:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
                 current_line = [word]
         if current_line:
-            lines.append(" ".join(current_line))
-            
-        # Draw lines centered with shadow for better visibility
-        y = 60
-        for line in lines:
-            bbox = draw.textbbox((0,0), line, font=font)
-            text_w = bbox[2] - bbox[0]
-            x = (img_w - text_w) // 2
-            # Shadow
-            draw.text((x+2, y+2), line, font=font, fill="#222222")
-            # Main text
-            draw.text((x, y), line, font=font, fill="#FFFFFF", stroke_width=2, stroke_fill="#000000")
-            y += 95
-            
-        temp_path = f"assets/temp/text_{hash(text)}.png"
-        os.makedirs("assets/temp", exist_ok=True)
-        img.save(temp_path)
-        return temp_path
+            lines.append(' '.join(current_line))
+        
+        # Draw text
+        y = 30
+        for line in lines[:5]:  # Max 5 lines
+            draw.text((40, y), line, font=font, fill="#FFFFFF")
+            y += 60
+        
+        path = f"assets/temp/static_{hash(text)}.png"
+        img.save(path)
+        
+        clip = ImageClip(path).set_duration(duration)
+        clip = clip.set_position(("center", self.height - 450))
+        return clip
 
-    def assemble_final(self, clips: list, output_path: str, watermark_path: str = None, mood: str = "peaceful"):
-        """Concatenates prepared clips and adds mood-based background music."""
-        if not clips:
+    def assemble_final(self, scenes: list, output_path: str, mood: str = "peaceful"):
+        """Assembles all scenes and adds background music."""
+        if not scenes:
+            logging.error("No scenes to assemble!")
             return
             
-        final_video = concatenate_videoclips(clips, method="compose")
+        logging.info(f"🎬 Assembling {len(scenes)} scenes...")
+        final_video = concatenate_videoclips(scenes, method="compose")
         
-        # Add Watermark
-        if watermark_path and os.path.exists(watermark_path):
-             final_video = self.apply_watermark(final_video, watermark_path)
-        
-        # Add Mood-Based Background Music
+        # Add background music
         bg_music_path = self._select_music_by_mood(mood)
-        if bg_music_path and os.path.exists(bg_music_path):
+        if bg_music_path:
             try:
                 bg_music = AudioFileClip(bg_music_path)
                 if bg_music.duration < final_video.duration:
@@ -328,8 +304,7 @@ class EditorEngine:
                 else:
                     bg_music = bg_music.subclip(0, final_video.duration)
                 
-                # Mild volume (12% - subtle background)
-                bg_music = bg_music.volumex(0.12)
+                bg_music = bg_music.volumex(0.12)  # Soft background
                 
                 if final_video.audio:
                     final_audio = CompositeAudioClip([final_video.audio, bg_music])
@@ -338,11 +313,11 @@ class EditorEngine:
                     final_video = final_video.set_audio(bg_music)
                 logging.info(f"   🎵 Background music added (mood: {mood})")
             except Exception as e:
-                logging.error(f"   ⚠️ Could not add background music: {e}")
+                logging.error(f"   ⚠️ Music error: {e}")
         
-        # Write the final video
-        fps = final_video.fps if hasattr(final_video, 'fps') and final_video.fps else 24
-
+        # Write final video
+        fps = 24
+        logging.info(f"   📹 Rendering to {output_path}...")
         final_video.write_videofile(
             output_path, 
             fps=fps, 
@@ -352,58 +327,18 @@ class EditorEngine:
             preset="medium"
         )
         logging.info(f"   ✅ Video saved: {output_path}")
-    
+
     def _select_music_by_mood(self, mood: str) -> str:
-        """Selects appropriate background music based on content mood."""
+        """Selects background music based on mood."""
         import random
         
-        # Music folder structure: assets/music/<mood>/
-        mood_lower = mood.lower() if mood else "peaceful"
-        
-        # Map mood keywords to folder names
-        mood_map = {
-            "mysterious": "mysterious",
-            "dark": "mysterious",
-            "energetic": "upbeat",
-            "positive": "upbeat",
-            "peaceful": "peaceful",
-            "calm": "peaceful",
-            "spiritual": "spiritual",
-            "devotional": "spiritual"
-        }
-        
-        folder_name = mood_map.get(mood_lower, "peaceful")
-        music_folder = os.path.join("assets", "music", folder_name)
-        
-        # Fallback to root music folder
+        music_folder = os.path.join("assets", "music")
         if not os.path.exists(music_folder):
-            music_folder = os.path.join("assets", "music")
+            return None
         
-        # Find all music files
-        music_files = []
-        if os.path.exists(music_folder):
-            for f in os.listdir(music_folder):
-                if f.endswith(('.mp3', '.wav', '.m4a')):
-                    music_files.append(os.path.join(music_folder, f))
+        music_files = [f for f in os.listdir(music_folder) if f.endswith(('.mp3', '.wav', '.m4a'))]
         
-        # Also check bg.mp3 as fallback
-        default_bg = os.path.join("assets", "music", "bg.mp3")
-        if not music_files and os.path.exists(default_bg):
-            return default_bg
-        
-        # Pick random from mood folder
         if music_files:
-            return random.choice(music_files)
+            return os.path.join(music_folder, random.choice(music_files))
         
         return None
-
-    def apply_watermark(self, video_clip, watermark_path: str):
-        """Overlays a watermark image on the video."""
-        if not os.path.exists(watermark_path):
-            return video_clip
-            
-        watermark = ImageClip(watermark_path).set_duration(video_clip.duration)
-        watermark = watermark.resize(height=150)
-        watermark = watermark.set_position((20, 20)).set_opacity(0.8)
-        
-        return CompositeVideoClip([video_clip, watermark], size=video_clip.size)
