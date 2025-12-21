@@ -114,29 +114,34 @@ class EditorEngine:
         return None
 
     def _create_gradient_image(self, rashi_name: str) -> str:
-        """Creates a gradient background image based on Rashi theme."""
+        """Creates a LARGE gradient background image for panning animation."""
         rashi_key = self._get_rashi_key(rashi_name)
         
         colors = RASHI_GRADIENTS.get(rashi_key, ((30, 30, 60), (10, 10, 20)))
         top_color, bottom_color = colors
         
-        img = Image.new('RGB', (self.width, self.height))
+        # Create larger image for panning effect (1.2x size)
+        large_w = int(self.width * 1.2)
+        large_h = int(self.height * 1.2)
+        
+        img = Image.new('RGB', (large_w, large_h))
         draw = ImageDraw.Draw(img)
         
-        # Create vertical gradient
-        for y in range(self.height):
-            ratio = y / self.height
+        # Create diagonal gradient (more dynamic)
+        for y in range(large_h):
+            ratio = y / large_h
             r = int(top_color[0] * (1 - ratio) + bottom_color[0] * ratio)
             g = int(top_color[1] * (1 - ratio) + bottom_color[1] * ratio)
             b = int(top_color[2] * (1 - ratio) + bottom_color[2] * ratio)
-            draw.line([(0, y), (self.width, y)], fill=(r, g, b))
+            draw.line([(0, y), (large_w, y)], fill=(r, g, b))
         
-        # Add subtle vignette effect
-        for i in range(50):
-            alpha = int(255 * (1 - i / 50) * 0.3)
-            draw.rectangle([i, i, self.width - i, self.height - i], outline=(0, 0, 0, alpha))
-        
-        path = f"assets/temp/gradient_{rashi_key}.png"
+        # Add subtle noise/texture for premium feel
+        noise = np.random.randint(0, 20, (large_h, large_w, 3), dtype='uint8')
+        img_np = np.array(img)
+        img_np = np.clip(img_np + noise, 0, 255).astype('uint8')
+        img = Image.fromarray(img_np)
+
+        path = f"assets/temp/gradient_large_{rashi_key}.png"
         img.save(path)
         return path
 
@@ -159,11 +164,11 @@ class EditorEngine:
         rashi_img = rashi_img.resize((target_width, target_height), Image.Resampling.LANCZOS)
         
         # Create shadow
-        shadow_offset = 15
+        shadow_offset = 20
         shadow = Image.new('RGBA', (target_width + shadow_offset * 2, target_height + shadow_offset * 2), (0, 0, 0, 0))
         shadow_draw = ImageDraw.Draw(shadow)
-        shadow_draw.rectangle([shadow_offset, shadow_offset, target_width + shadow_offset, target_height + shadow_offset], fill=(0, 0, 0, 100))
-        shadow = shadow.filter(ImageFilter.GaussianBlur(radius=20))
+        shadow_draw.rectangle([shadow_offset, shadow_offset, target_width + shadow_offset, target_height + shadow_offset], fill=(0, 0, 0, 120))
+        shadow = shadow.filter(ImageFilter.GaussianBlur(radius=25))
         
         # Combine
         final = Image.new('RGBA', (target_width + shadow_offset * 2, target_height + shadow_offset * 2), (0, 0, 0, 0))
@@ -177,23 +182,39 @@ class EditorEngine:
     def create_scene(self, rashi_name: str, text: str, duration: float, subtitle_data: list = None) -> CompositeVideoClip:
         """
         Creates a scene with:
-        - Gradient background themed to Rashi
-        - Rashi image centered with shadow
-        - Karaoke-style text at bottom
+        - Animated Panning Gradient Background
+        - Breathing Rashi Image
+        - Karaoke-style text
         """
         layers = []
         
-        # 1. Gradient Background
+        # 1. Animated Gradient Background (Slow Pan)
         gradient_path = self._create_gradient_image(rashi_name)
-        bg_clip = ImageClip(gradient_path).set_duration(duration)
+        large_bg = ImageClip(gradient_path).set_duration(duration)
+        
+        # Pan/Scroll effect: Move from top-left to slightly bottom-right
+        def scroll_bg(t):
+             # Scroll speed
+             vx = -20 
+             vy = -20
+             x = int(vx * t)
+             y = int(vy * t)
+             return (x, y)
+             
+        bg_clip = large_bg.set_position(scroll_bg)
         layers.append(bg_clip)
         
-        # 2. Rashi Image with Shadow (centered, upper half)
+        # 2. Rashi Image with Shadow (Breathing Effect)
         rashi_image_path = self.get_rashi_image_path(rashi_name)
         if rashi_image_path:
             shadow_path = self._create_rashi_with_shadow(rashi_image_path)
             if shadow_path:
                 rashi_clip = ImageClip(shadow_path).set_duration(duration)
+                
+                # Breathing Animation (Scale 1.0 -> 1.05 -> 1.0)
+                # Note: resize is CPU intensive, keeping it simple: constant slow zoom in
+                rashi_clip = rashi_clip.resize(lambda t: 1 + 0.02 * (t / duration)) 
+                
                 # Position in upper-center area
                 rashi_clip = rashi_clip.set_position(("center", int(self.height * 0.15)))
                 layers.append(rashi_clip)
