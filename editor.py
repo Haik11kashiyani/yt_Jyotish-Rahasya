@@ -29,32 +29,39 @@ RASHI_IMAGE_MAP = {
     "meen": "meen.jpg", "pisces": "meen.jpg",
 }
 
-# Rashi-themed gradient colors (top_color, bottom_color)
-RASHI_GRADIENTS = {
-    "mesh": ("#B42828", "#3C0A0A"),       # Red/maroon
-    "aries": ("#B42828", "#3C0A0A"),
-    "vrushabh": ("#28783C", "#0F3219"),   # Green
-    "taurus": ("#28783C", "#0F3219"),
-    "mithun": ("#C8B432", "#503C14"),    # Yellow
-    "gemini": ("#C8B432", "#503C14"),
-    "kark": ("#3C508C", "#141E3C"),       # Blue
-    "cancer": ("#3C508C", "#141E3C"),
-    "singh": ("#C8641E", "#50280A"),     # Orange
-    "leo": ("#C8641E", "#50280A"),
-    "kanya": ("#648C50", "#283C1E"),     # Olive
-    "virgo": ("#648C50", "#283C1E"),
-    "tula": ("#8C64A0", "#32233C"),     # Purple
-    "libra": ("#8C64A0", "#32233C"),
-    "vrushchik": ("#641E28", "#280A0F"),  # Dark red
-    "scorpio": ("#641E28", "#280A0F"),
-    "dhanu": ("#A05028", "#3C1E0F"),      # Brown
-    "sagittarius": ("#A05028", "#3C1E0F"),
-    "makar": ("#3C3C3C", "#191919"),       # Gray
-    "capricorn": ("#3C3C3C", "#191919"),
-    "kumbh": ("#2864A0", "#0F283C"),     # Blue
-    "aquarius": ("#2864A0", "#0F283C"),
-    "meen": ("#50788C", "#1E323C"),      # Teal
-    "pisces": ("#50788C", "#1E323C"),
+# Rashi-themed Deep Gradients (Top, Middle, Bottom)
+RASHI_STYLES = {
+    # Fire Signs (Dynamic Red/Orange/Gold)
+    "mesh":      {"grad": ("#4a0e0e", "#801515", "#fbb03b"), "glow": "#ff4500", "element": "fire"},
+    "aries":     {"grad": ("#4a0e0e", "#801515", "#fbb03b"), "glow": "#ff4500", "element": "fire"},
+    "singh":     {"grad": ("#3e1e07", "#8e4010", "#f5d300"), "glow": "#ffd700", "element": "fire"},
+    "leo":       {"grad": ("#3e1e07", "#8e4010", "#f5d300"), "glow": "#ffd700", "element": "fire"},
+    "dhanu":     {"grad": ("#2b1338", "#6a1b9a", "#ff8f00"), "grad_note": "Purple to Orange", "glow": "#ffa500", "element": "fire"},
+    "sagittarius":{"grad": ("#2b1338", "#6a1b9a", "#ff8f00"), "glow": "#ffa500", "element": "fire"},
+    
+    # Earth Signs (Rich Green/Brown/Emerald)
+    "vrushabh":  {"grad": ("#0f2214", "#2e7d32", "#a5d6a7"), "glow": "#4caf50", "element": "earth"},
+    "taurus":    {"grad": ("#0f2214", "#2e7d32", "#a5d6a7"), "glow": "#4caf50", "element": "earth"},
+    "kanya":     {"grad": ("#1b2e1b", "#558b2f", "#cddc39"), "glow": "#8bc34a", "element": "earth"},
+    "virgo":     {"grad": ("#1b2e1b", "#558b2f", "#cddc39"), "glow": "#8bc34a", "element": "earth"},
+    "makar":     {"grad": ("#101010", "#424242", "#90a4ae"), "glow": "#b0bec5", "element": "earth"},
+    "capricorn": {"grad": ("#101010", "#424242", "#90a4ae"), "glow": "#b0bec5", "element": "earth"},
+
+    # Air Signs (Sky Blue/Lavender/Silver)
+    "mithun":    {"grad": ("#1a237e", "#3949ab", "#ffeb3b"), "glow": "#ffff00", "element": "air"},
+    "gemini":    {"grad": ("#1a237e", "#3949ab", "#ffeb3b"), "glow": "#ffff00", "element": "air"},
+    "tula":      {"grad": ("#251034", "#6a1b9a", "#f8bbd0"), "glow": "#ff80ab", "element": "air"},
+    "libra":     {"grad": ("#251034", "#6a1b9a", "#f8bbd0"), "glow": "#ff80ab", "element": "air"},
+    "kumbh":     {"grad": ("#001030", "#0277bd", "#4fc3f7"), "glow": "#29b6f6", "element": "air"},
+    "aquarius":  {"grad": ("#001030", "#0277bd", "#4fc3f7"), "glow": "#29b6f6", "element": "air"},
+
+    # Water Signs (Deep Blue/Teal/Mystic)
+    "kark":      {"grad": ("#0d1526", "#1565c0", "#90caf9"), "glow": "#e3f2fd", "element": "water"},
+    "cancer":    {"grad": ("#0d1526", "#1565c0", "#90caf9"), "glow": "#e3f2fd", "element": "water"},
+    "vrushchik": {"grad": ("#200508", "#880e4f", "#ff1744"), "glow": "#ff5252", "element": "water"},
+    "scorpio":   {"grad": ("#200508", "#880e4f", "#ff1744"), "glow": "#ff5252", "element": "water"},
+    "meen":      {"grad": ("#002025", "#006064", "#1de9b6"), "glow": "#64ffda", "element": "water"},
+    "pisces":    {"grad": ("#002025", "#006064", "#1de9b6"), "glow": "#64ffda", "element": "water"},
 }
 
 class EditorEngine:
@@ -100,7 +107,16 @@ class EditorEngine:
         # Prepare params
         rashi_img = self.get_rashi_image_path(rashi_name) or ""
         rashi_key = self._get_rashi_key(rashi_name)
-        colors = RASHI_GRADIENTS.get(rashi_key, ("#303060", "#101020"))
+        
+        # Get style from new map
+        style = RASHI_STYLES.get(rashi_key)
+        if not style:
+             # Fallback
+             style = {"grad": ("#303060", "#202040", "#101020"), "glow": "#ffffff", "element": "neutral"}
+        
+        grad = style["grad"] # (c1, c2, c3)
+        glow = style["glow"]
+        element = style["element"]
         
         # Convert local path to file URL for browser
         if rashi_img:
@@ -108,7 +124,10 @@ class EditorEngine:
         else:
             rashi_img_url = ""
             
-        url = f"file:///{self.template_path.replace(os.sep, '/')}?text={text}&img={rashi_img_url}&c1={colors[0].replace('#', '%23')}&c2={colors[1].replace('#', '%23')}"
+        # Construct URL with new params
+        url = (f"file:///{self.template_path.replace(os.sep, '/')}?text={text}&img={rashi_img_url}"
+               f"&c1={grad[0].replace('#', '%23')}&c2={grad[1].replace('#', '%23')}&c3={grad[2].replace('#', '%23')}"
+               f"&glow={glow.replace('#', '%23')}&elem={element}")
         
         logging.info(f"   🌍 Launching Playwright for scene ({duration}s)...")
         
