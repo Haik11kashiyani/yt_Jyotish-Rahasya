@@ -21,47 +21,69 @@
             background: #000;
         }
 
-        /* Deep Radial + Linear Hybrid Gradient */
+        /* ----------------------
+           BACKGROUND LAYERS
+           ---------------------- */
+
+        /* Layer 1: Base Gradient (Dynamic 2-color radial) */
         #background {
             position: absolute;
             top: -50%;
             left: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(circle at 50% 50%, var(--c2, #202040), var(--c1, #303060));
+            background: radial-gradient(circle at 50% 50%, var(--c2, #202040) 10%, var(--c1, #303060) 90%);
+            opacity: 0.8;
             z-index: 1;
         }
 
+        /* Layer 2: Overlay for Depth (Dark vignette + color tint) */
         #overlay-gradient {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0) 0%, var(--c3, #101020) 100%);
-            z-index: 1;
-            mix-blend-mode: multiply;
+            background: radial-gradient(circle at 50% 30%, transparent 20%, rgba(0, 0, 0, 0.8) 100%);
+            z-index: 2;
         }
 
-        /* Particle Overlay */
+        /* Layer 3: Particles (Subtle noise texture) */
         #particles {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
-            z-index: 2;
-            opacity: 0.3;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+            z-index: 3;
+            opacity: 0.2;
+            mix-blend-mode: overlay;
         }
 
+        /* Layer 4: Accent Light (Top glow) */
+        #accent-light {
+            position: absolute;
+            top: -20%;
+            left: 20%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, var(--glow, #FFD700) 0%, transparent 60%);
+            opacity: 0.15;
+            z-index: 2;
+            mix-blend-mode: screen;
+        }
+
+        /* ----------------------
+           RASHI IMAGE CONTAINER
+           ---------------------- */
         #rashi-container {
             position: absolute;
-            top: 200px;
+            top: 180px;
             left: 50%;
             transform: translateX(-50%);
-            width: 600px;
-            height: 600px;
+            width: 550px;
+            height: 550px;
             z-index: 5;
             display: flex;
             justify-content: center;
@@ -72,36 +94,59 @@
             width: 100%;
             height: auto;
             max-height: 100%;
-            /* Initial Filter - will be animated */
-            filter: drop-shadow(0 0 40px var(--glow, #ffd700));
+            /* Cleaner, Sophisticated Look: No crazy glow. Just clean shadow + subtle border. */
+            filter: drop-shadow(0 20px 50px rgba(0, 0, 0, 0.6));
+            border-radius: 50%;
+            /* If circular images */
+            /* Optional: Add a subtle golden ring/border via box-shadow or border */
+            border: 2px solid rgba(255, 255, 255, 0.1);
         }
 
+        /* Inner glow/aura container specifically for the image to separate it */
+        .aura-circle {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            border-radius: 50%;
+            border: 1px solid var(--glow, #FFD700);
+            box-shadow: 0 0 30px var(--glow, #FFD700) inset, 0 0 50px var(--glow, #FFD700);
+            opacity: 0.2;
+            z-index: 4;
+            pointer-events: none;
+        }
+
+        /* ----------------------
+           TEXT CONTAINER
+           ---------------------- */
         #text-container {
             position: absolute;
-            top: 1050px;
-            /* Slightly higher */
+            top: 900px;
+            /* Moved up a bit */
             left: 50%;
             transform: translateX(-50%);
-            width: 900px;
+            width: 880px;
+            /* Slightly narrower padding */
             text-align: center;
-            color: white;
+            color: #ffffff;
             z-index: 10;
-            font-size: 65px;
-            /* Bigger font */
+
+            /* Typography */
+            font-size: 58px;
             font-weight: 700;
-            line-height: 1.3;
-            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+            line-height: 1.5;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 
-            /* Glassmorphism */
-            background: rgba(0, 0, 0, 0.2);
-            /* Darker glass for contrast */
-            backdrop-filter: blur(15px);
-            padding: 50px;
+            /* Glass Card Effect - Cleaner */
+            background: rgba(20, 20, 30, 0.4);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            padding: 60px 50px;
             border-radius: 40px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 
-            height: 600px;
+            min-height: 400px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -111,17 +156,19 @@
 
         .word {
             display: inline-block;
-            opacity: 0.25;
-            margin: 0 12px;
-            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 0.3;
+            /* Higher base opacity for readability */
+            margin: 0 8px;
+            transition: all 0.25s ease-out;
+            transform-origin: center bottom;
         }
 
         .word.active {
             opacity: 1;
-            transform: scale(1.2);
-            /* Bigger pop */
+            transform: scale(1.15) translateY(-5px);
             color: var(--glow, #FFD700);
-            text-shadow: 0 0 40px var(--glow, #FFD700);
+            text-shadow: 0 0 25px var(--glow, #FFD700);
+            font-weight: 800;
         }
     </style>
 </head>
@@ -129,9 +176,12 @@
 <body>
     <div id="background"></div>
     <div id="overlay-gradient"></div>
+    <div id="accent-light"></div>
     <div id="particles"></div>
 
     <div id="rashi-container">
+        <!-- New Aura Ring -->
+        <div class="aura-circle"></div>
         <img id="rashi-image" src="" alt="Rashi">
     </div>
 
@@ -176,24 +226,18 @@
             ease: "none"
         }, 0);
 
-        // 2. Rashi & Glow Animation (Element based?)
-        // Universal Premium Float
+        // 2. Rashi Premium Float (Subtle, No Blinking)
+        // Just a gentle float up and down to keep it alive
         tl.to("#rashi-image", {
-            y: -40,
-            duration: 5,
+            y: -20, // Reduced from -40
+            duration: 6, // Slower
             repeat: 20,
             yoyo: true,
             ease: "sine.inOut"
         }, 0);
 
-        // Pulsing Glow
-        tl.to("#rashi-image", {
-            filter: `drop-shadow(0 0 80px ${glow}) brightness(1.1)`,
-            duration: 2.5,
-            repeat: 40,
-            yoyo: true,
-            ease: "sine.inOut"
-        }, 0);
+        // Removed "Pulsing Glow" / Blinking effect as requested
+        // Static classy shadow is already in CSS
 
         // 3. Control Interface
         window.setWordActive = (index) => {
