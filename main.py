@@ -61,12 +61,101 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
     
     os.makedirs(f"assets/temp/{title_suffix}", exist_ok=True)
     
+    
+    # Hindi Name Mapping for Pronunciation & Display
+    RASHI_HINDI_MAP = {
+        "mesh": "मेष", "aries": "मेष",
+        "vrushabh": "वृषभ", "taurus": "वृषभ",
+        "mithun": "मिथुन", "gemini": "मिथुन",
+        "kark": "कर्क", "cancer": "कर्क",
+        "singh": "सिंह", "leo": "सिंह",
+        "kanya": "कन्या", "virgo": "कन्या",
+        "tula": "तुला", "libra": "तुला",
+        "vrushchik": "वृश्चिक", "scorpio": "वृश्चिक",
+        "dhanu": "धनु", "sagittarius": "धनु",
+        "makar": "मकर", "capricorn": "मकर",
+        "kumbh": "कुंभ", "aquarius": "कुंभ",
+        "meen": "मीन", "pisces": "मीन"
+    }
+    
+    # Determine current Rashi's Hindi Label
+    # rashi input key e.g "Mesh (Aries)" -> "mesh"
+    rashi_key = rashi.lower().split('(')[0].strip()
+    rashi_hindi = RASHI_HINDI_MAP.get(rashi_key, rashi_key)
+    
     for section in active_sections:
         print(f"      🎤 Generating: {section.upper()}...")
-        text = str(script[section])
+        original_text = str(script[section])
+        
+        # --- LOCALIZATION & CLEANUP ---
+        # Initialize separate texts
+        speech_text = original_text
+        display_text = original_text
+        
+        # 1. Rashi Name Handling
+        # Speech: "मेष" (No brackets)
+        # Display: "मेष (Mesh)" (With brackets)
+        
+        # Replace occurrences in text
+        # Speech: "मेष" (No English, No Brackets)
+        speech_text = speech_text.replace(rashi_key.capitalize(), rashi_hindi)
+        speech_text = speech_text.replace(rashi_key.upper(), rashi_hindi)
+        # Handle "Mesh" vs "Aries" if mixed
+        if rashi_key != rashi_hindi: # If not already same
+             speech_text = speech_text.replace("Mesh", "मेष").replace("Aries", "मेष")
+        
+        # Remove any lingering brackets/English from speech if commonly found
+        speech_text = speech_text.replace(f"({rashi_key.capitalize()})", "").replace("()", "")
+
+        # Display: "मेष (Mesh)" (With Brackets for Title/Context)
+        # We replace the Hindi name back to "Hindi (English)" format for display if it was replaced
+        # OR we just replace English -> "Hindi (English)" direclty
+        target_display = f"{rashi_hindi} ({rashi_key.capitalize()})"
+        
+        if rashi_key.capitalize() in display_text:
+             display_text = display_text.replace(rashi_key.capitalize(), target_display)
+        elif "Mesh" in display_text:
+             display_text = display_text.replace("Mesh", target_display)
+             
+        # 2. COLOR & NUMBER Localization
+        if section == "lucky_color":
+            # Map common colors
+            colors_map = {
+                "Red": "लाल", "Blue": "नीला", "Green": "हरा", "Yellow": "पीला", 
+                "White": "सफेद", "Black": "काला", "Pink": "गुलाबी", "Orange": "नारंगी",
+                "Purple": "बैंगनी", "Brown": "भूरा", "Grey": "स्लेटी", "Gray": "स्लेटी",
+                "Gold": "सुनहरा", "Silver": "चांदी"
+            }
+            # Extract English Color if possible (Simple check)
+            found_color_en = ""
+            found_color_hi = ""
+            for en, hi in colors_map.items():
+                if en.lower() in original_text.lower():
+                    found_color_en = en
+                    found_color_hi = hi
+                    break
+            
+            if found_color_hi:
+                # Format: "Aaj ka shubh rang Lal (Red)"
+                # Speech: "Aaj ka shubh rang Lal"
+                speech_text = f"आज का शुभ रंग {found_color_hi} है।"
+                display_text = f"आज का शुभ रंग: {found_color_hi} ({found_color_en})"
+            else:
+                 # Fallback
+                 speech_text = f"आज का शुभ रंग {original_text} है।"
+                 display_text = f"शुभ रंग: {original_text}"
+
+        elif section == "lucky_number":
+             # Format: "Aaj ka shubh ank [Number]"
+             speech_text = f"आज का शुभ अंक {original_text} है।"
+             display_text = f"शुभ अंक: {original_text}"
+
+        # 3. Clean up english words if possible (naive replacement)
+        speech_text = speech_text.replace("Lucky Color", "शुभ रंग").replace("Lucky Number", "शुभ अंक")
+        display_text = display_text.replace("Lucky Color", "शुभ रंग").replace("Lucky Number", "शुभ अंक")
         
         # Validate that text isn't a stringified dict/list (Defensive Check)
-        text_stripped = text.strip()
+        text_stripped = speech_text.strip()
         if (text_stripped.startswith("{") and "}" in text_stripped) or (text_stripped.startswith("[") and "]" in text_stripped):
              print(f"         ⚠️ WARNING: Section '{section}' appears to be a raw object. Skipping to prevent glitch.")
              continue
@@ -75,7 +164,7 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
         subtitle_path = audio_path.replace(".mp3", ".json")
         
         # Only generate if not exists (or always overwrite to be safe? let's overwrite for fresh speed settings)
-        narrator.speak(text, audio_path)
+        narrator.speak(speech_text, audio_path)
         
         if os.path.exists(audio_path):
             try:
@@ -85,8 +174,8 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
                     "path": audio_path,
                     "duration": dur,
                     "subtitle_path": subtitle_path,
-                    "text": text,
-                    "audio_object": clip # Keep open? No, close and reopen later to save memory
+                    "text": display_text, # STORE DISPLAY TEXT HERE for Editor
+                    "audio_object": clip 
                 }
                 clip.close() # Close file handle
                 total_duration += dur
@@ -148,8 +237,10 @@ def produce_video_from_script(agents, rashi, title_suffix, script, date_str):
                     subtitle_data = json.load(f)
             except: pass
             
-        # Create Scene
-        clip = editor.create_scene(rashi, text, duration, subtitle_data=subtitle_data)
+        # Create Scene (Clean Rashi Name for Display)
+        # "Mesh (Aries)" -> "Mesh"
+        clean_rashi_name = rashi.split('(')[0].strip()
+        clip = editor.create_scene(clean_rashi_name, text, duration, subtitle_data=subtitle_data)
         
         # Attach Audio
         if clip:

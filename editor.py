@@ -105,6 +105,8 @@ class EditorEngine:
         os.makedirs(frames_dir, exist_ok=True)
         
         # Prepare params
+        # rashi_name comes in as "Mesh" (cleaned) or "Mesh (Aries)"
+        # We need to find the image for it.
         rashi_img = self.get_rashi_image_path(rashi_name) or ""
         rashi_key = self._get_rashi_key(rashi_name)
         
@@ -125,7 +127,11 @@ class EditorEngine:
             rashi_img_url = ""
             
         # Construct URL with new params
-        url = (f"file:///{self.template_path.replace(os.sep, '/')}?text={text}&img={rashi_img_url}"
+        # Ensure text is properly encoded
+        import urllib.parse
+        encoded_text = urllib.parse.quote(text)
+        
+        url = (f"file:///{self.template_path.replace(os.sep, '/')}?text={encoded_text}&img={rashi_img_url}"
                f"&c1={grad[0].replace('#', '%23')}&c2={grad[1].replace('#', '%23')}&c3={grad[2].replace('#', '%23')}"
                f"&glow={glow.replace('#', '%23')}&elem={element}")
         
@@ -140,7 +146,8 @@ class EditorEngine:
             page = await browser.new_page(viewport={"width": 1080, "height": 1920})
             
             await page.goto(url)
-            await page.wait_for_selector("#text-container") # Wait for load
+            # Wait for text to actually appear
+            await page.wait_for_selector(f"#text-container") 
             
             logging.info(f"   📸 Capturing {total_frames} frames...")
             
@@ -218,25 +225,26 @@ class EditorEngine:
         # ------------------------------ 
         
         # Add background music
-        bg_music_path = self._select_music_by_mood(mood)
-        if bg_music_path and os.path.exists(bg_music_path):
-            try:
-                bg_music = AudioFileClip(bg_music_path)
-                if bg_music.duration < final_video.duration:
-                    bg_music = vfx.loop(bg_music, duration=final_video.duration)
-                else:
-                    bg_music = bg_music.subclip(0, final_video.duration)
-                
-                bg_music = bg_music.volumex(0.20)
-                
-                if final_video.audio:
-                    final_audio = CompositeAudioClip([final_video.audio, bg_music])
-                    final_video = final_video.set_audio(final_audio)
-                else:
-                    final_video = final_video.set_audio(bg_music)
-                logging.info(f"   🎵 Music added: {os.path.basename(bg_music_path)}")
-            except Exception as e:
-                logging.error(f"   ⚠️ Music error: {e}")
+        # USER REQUEST: Removed music ("very o full")
+        # bg_music_path = self._select_music_by_mood(mood)
+        # if bg_music_path and os.path.exists(bg_music_path):
+        #     try:
+        #         bg_music = AudioFileClip(bg_music_path)
+        #         if bg_music.duration < final_video.duration:
+        #             bg_music = vfx.loop(bg_music, duration=final_video.duration)
+        #         else:
+        #             bg_music = bg_music.subclip(0, final_video.duration)
+        #         
+        #         bg_music = bg_music.volumex(0.20)
+        #         
+        #         if final_video.audio:
+        #             final_audio = CompositeAudioClip([final_video.audio, bg_music])
+        #             final_video = final_video.set_audio(final_audio)
+        #         else:
+        #             final_video = final_video.set_audio(bg_music)
+        #         logging.info(f"   🎵 Music added: {os.path.basename(bg_music_path)}")
+        #     except Exception as e:
+        #         logging.error(f"   ⚠️ Music error: {e}")
         
         # Write final video
         logging.info(f"   📹 Rendering to {output_path}...")

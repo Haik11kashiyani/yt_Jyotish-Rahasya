@@ -14,7 +14,7 @@ class NarratorAgent:
     def __init__(self):
         # Neural Voices: hi-IN-SwaraNeural (Female) or hi-IN-MadhurNeural (Male)
         self.voice = "hi-IN-SwaraNeural"
-        self.rate = "+23%"  # Slightly slower as requested
+        self.rate = "+10%"  # Reduced from +23% to allow more emotion
         self.pitch = "+0Hz"
 
     async def generate_audio(self, text: str, output_path: str):
