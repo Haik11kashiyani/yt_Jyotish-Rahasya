@@ -1,136 +1,73 @@
-# 🔮 AI Japanese Eto Fortune Video Studio (干支占いスタジオ)
+# 🔮 YT Jyotish Rahasya (Vedic Astrology Automation)
 
-An autonomous, Industry-Level video production studio for Japanese Eto (干支) Fortune Telling.
+An autonomous, production-grade video studio for **Hindi Vedic Astrology (Rashifal)**.
+Automatically generates, edits, and uploads YouTube Shorts/Videos for all 12 Rashis.
 
-Generates authentic Japanese astrology content using traditional systems:
+## 🌟 Features
 
-- **干支 (Eto)** - 12 Animal Zodiac
-- **九星気学 (Kyusei Kigaku)** - Nine Star Ki
-- **六曜 (Rokuyo)** - Daily Luck Calendar
-- **五行 (Gogyou)** - Five Elements Theory
+- **Authentic Vedic Astrology** - Generates Daily/Monthly/Yearly forecasts.
+- **Pure Hindi Content** - Scripts and narration in high-quality Hindi.
+- **Automated Video Production** - Creates premium visuals with Rashi-specific themes.
+- **YouTube Integration** - Auto-uploads with SEO-optimized titles, tags, and descriptions.
+- **Reliable Scheduling** - Runs daily via GitHub Actions for all 12 signs.
 
-## 🌸 Features
+## 🕉️ Supported Rashis (Zodiac Signs)
 
-- **Authentic Japanese Fortune Content** - Uses real Japanese astrology systems
-- **Japanese TTS Narration** - Natural female voice (`ja-JP-NanamiNeural`)
-- **Japanese Aesthetic Visuals** - Cherry blossoms, wave patterns, washi paper textures
-- **4 Animation Styles** - Sakura, Ink brush, Zen, Wave
-- **Viral YouTube SEO** - Dynamic titles with mandatory `#shorts`
-- **Automated Daily/Monthly/Yearly Videos** - GitHub Actions powered
+| Hindi Name              | English Name |
+| ----------------------- | ------------ |
+| **मेष (Mesh)**          | Aries        |
+| **वृषभ (Vrishabh)**     | Taurus       |
+| **मिथुन (Mithun)**      | Gemini       |
+| **कर्क (Kark)**         | Cancer       |
+| **सिंह (Singh)**        | Leo          |
+| **कन्या (Kanya)**       | Virgo        |
+| **तुला (Tula)**         | Libra        |
+| **वृश्चिक (Vrishchik)** | Scorpio      |
+| **धनु (Dhanu)**         | Sagittarius  |
+| **मकर (Makar)**         | Capricorn    |
+| **कुंभ (Kumbh)**        | Aquarius     |
+| **मीन (Meen)**          | Pisces       |
 
-## 👥 The AI Team
+## ⚙️ How It Works
 
-| Agent                         | Role                                                                 |
-| ----------------------------- | -------------------------------------------------------------------- |
-| **星野先生 (Hoshino-sensei)** | **Astrologer** - Writes authentic Eto fortunes using OpenRouter LLMs |
-| **Director Agent**            | Visualizes Japanese aesthetic themes                                 |
-| **Narrator Agent**            | Speaks in natural Japanese using Neural TTS                          |
-| **Editor Engine**             | Renders HTML5 animations with Playwright                             |
-| **Uploader Agent**            | Handles YouTube uploads with viral metadata                          |
-
-## 📦 Setup
-
-### 1. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-playwright install chromium
-```
-
-### 2. Environment Variables
-
-Create a `.env` file:
-
-```env
-OPENROUTER_API_KEY=your-openrouter-key
-OPENROUTER_API_KEY_BACKUP=backup-key-optional
-GOOGLE_AI_API_KEY=your-google-ai-key
-
-# YouTube Upload (Optional)
-YOUTUBE_CLIENT_ID=your-client-id
-YOUTUBE_CLIENT_SECRET=your-client-secret
-YOUTUBE_REFRESH_TOKEN=your-refresh-token
-```
-
-### 3. Prepare Eto Images
-
-Place 12 animal images in these folders:
-
-- `assets/eto_daily/` - Daily fortune images
-- `assets/eto_monthly/` - Monthly fortune images
-- `assets/eto_yearly/` - Yearly fortune images
-
-Filenames: `ne.png`, `ushi.png`, `tora.png`, `u.png`, `tatsu.png`, `mi.png`, `uma.png`, `hitsuji.png`, `saru.png`, `tori.png`, `inu.png`, `i.png`
+1. **Astrologer Agent**: Uses AI to generate accurate Vedic predictions in Hindi.
+2. **Narrator Agent**: Converts text to natural-sounding Hindi speech.
+3. **Director Agent**: Selects appropriate visual themes and music.
+4. **Editor Engine**: Renders high-quality video with animations and overlays.
+5. **Uploader Agent**: Publishes to YouTube with viral metadata.
 
 ## 🚀 Usage
 
-### Generate Daily Fortune Video
+### Generate Daily Video
 
 ```bash
-python main.py --eto "Ne (Rat/子)" --type shorts
+python main.py --rashi "Mesh (Aries)" --type shorts
 ```
 
-### Generate Monthly/Yearly Fortune
+### Generate Detailed Video
 
 ```bash
-python main.py --eto "Tatsu (Dragon/辰)" --type detailed
+python main.py --rashi "Mesh (Aries)" --type detailed
 ```
 
-### Generate and Upload to YouTube
+### Generate & Upload
 
 ```bash
-python main.py --eto "Tora (Tiger/寅)" --type shorts --upload
+python main.py --rashi "Mesh (Aries)" --type shorts --upload
 ```
 
-## 🐾 12 Eto Animals
+## 📂 Project Structure
 
-| Romaji  | Kanji | Animal  | Element |
-| ------- | ----- | ------- | ------- |
-| Ne      | 子    | Rat     | Water   |
-| Ushi    | 丑    | Ox      | Earth   |
-| Tora    | 寅    | Tiger   | Wood    |
-| U       | 卯    | Rabbit  | Wood    |
-| Tatsu   | 辰    | Dragon  | Earth   |
-| Mi      | 巳    | Snake   | Fire    |
-| Uma     | 午    | Horse   | Fire    |
-| Hitsuji | 未    | Sheep   | Earth   |
-| Saru    | 申    | Monkey  | Metal   |
-| Tori    | 酉    | Rooster | Metal   |
-| Inu     | 戌    | Dog     | Earth   |
-| I       | 亥    | Boar    | Water   |
+- `main.py`: Core orchestration logic.
+- `editor.py`: Video rendering and visual effects.
+- `agents/`: AI agents for Astrology, Narration, and YouTube.
+- `.github/workflows/`: Automation schedules for daily batches.
+- `assets/`: Background images and music resources.
 
-## ⚙️ GitHub Actions
+## 📅 Automation Schedule
 
-This repo runs automatically:
+The system runs automatically via GitHub Actions in 4 batches daily to cover all 12 signs before sunrise.
 
-- **Daily**: 4 batches at 5:30, 6:00, 6:30, 7:00 AM JST
-- **Monthly**: 1st of each month
-- **Yearly**: New Year's Eve
+---
 
-See `.github/workflows/` for configuration.
-
-## 📁 Project Structure
-
-```
-ai_jpn_astro/
-├── main.py                 # Main orchestrator
-├── editor.py               # Video rendering engine
-├── agents/
-│   ├── astrologer.py       # LLM-powered fortune generation
-│   ├── director.py         # Visual theme analysis
-│   ├── narrator.py         # Japanese TTS
-│   └── uploader.py         # YouTube upload
-├── templates/
-│   └── scene.html          # Japanese-themed HTML template
-├── assets/
-│   ├── eto_daily/          # Daily fortune images
-│   ├── eto_monthly/        # Monthly fortune images
-│   └── eto_yearly/         # Yearly fortune images
-└── .github/workflows/      # Automation workflows
-```
-
-## 📄 License
-
-This work is licensed under a Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License.
-
-Made with 🌸 for Japanese fortune enthusiasts.
+_Powered by AI & Vedic Wisdom_
