@@ -60,6 +60,23 @@ jobs:
           playwright install --with-deps chromium
           echo "✅ All Python deps installed"
 
+      - name: Cache HuggingFace MMS-TTS Hindi Model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-mms-tts-hin-v1
+          restore-keys: hf-mms-tts-hin-v1
+
+      - name: Pre-Download MMS-TTS Hindi Model
+        run: |
+          python -c "
+          from transformers import VitsModel, AutoTokenizer
+          print('Downloading facebook/mms-tts-hin...')
+          AutoTokenizer.from_pretrained('facebook/mms-tts-hin')
+          VitsModel.from_pretrained('facebook/mms-tts-hin')
+          print('MMS-TTS Hindi model ready!')
+          "
+
       - name: Verify Imports & Ephemeris
         run: |
           python -c "

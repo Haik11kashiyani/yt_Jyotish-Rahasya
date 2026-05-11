@@ -16,3 +16,8 @@ nest_asyncio
 pytz
 gTTS
 mutagen
+# Neural Hindi TTS (Facebook MMS-TTS — high quality, CPU-based, offline)
+torch
+transformers>=4.35.0
+scipy
+soundfile
