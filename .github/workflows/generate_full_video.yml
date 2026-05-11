@@ -1,6 +1,5 @@
 name: 🧪 Full Pipeline Test (Single Rashi)
 # Manual trigger only - use this to verify the full pipeline is working
-# Runs any video type for one rashi to confirm end-to-end production
 on:
   workflow_dispatch:
     inputs:
@@ -30,13 +29,11 @@ on:
 permissions:
   contents: read
 
-# Opt into Node.js 24 to eliminate deprecation warnings
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   test-full-pipeline:
-
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -47,7 +44,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Install System Dependencies
         run: |
@@ -67,19 +64,21 @@ jobs:
       - name: Verify Imports & Ephemeris
         run: |
           python -c "
-          import agents.astrologer, agents.director, agents.narrator, agents.ephemeris
+          import agents.astrologer, agents.director, agents.narrator
           print('✅ All agent imports OK')
-          from agents.ephemeris import get_daily_data, EPHEMERIS_AVAILABLE
+          from agents.ephemeris import EPHEMERIS_AVAILABLE, get_daily_data, VARA_NAMES
           print(f'✅ Ephemeris available: {EPHEMERIS_AVAILABLE}')
-          import pytz; from datetime import datetime
+          import pytz
+          from datetime import datetime
           ist = pytz.timezone('Asia/Kolkata')
           now = datetime.now(ist)
           if EPHEMERIS_AVAILABLE:
               d = get_daily_data(now)
-              print(f\"✅ Today Vara: {d['vara']}\")
-              print(f\"✅ Moon Nakshatra: {d['moon_nakshatra']}\")
-              print(f\"✅ Moon Rashi: {d['moon_rashi']}\")
-              print(f\"✅ Retrogrades: {d['retrogrades']}\")
+              print(f'✅ Vara: {d[\"vara\"]}')
+              print(f'✅ Moon Nakshatra: {d[\"moon_nakshatra\"]}')
+              print(f'✅ Moon Rashi: {d[\"moon_rashi\"]}')
+              print(f'✅ Retrogrades: {d[\"retrogrades\"]}')
+              print(f'✅ Conjunctions: {len(d[\"conjunctions\"])} found')
           "
 
       - name: Run Production Pipeline

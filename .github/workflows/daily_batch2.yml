@@ -2,15 +2,18 @@ name: Daily Rashifal - Batch 2 (Kark, Singh, Kanya)
 on:
   workflow_dispatch:
   schedule:
-    # 2:39 AM IST = 21:09 UTC - 9 min after batch1
+    # 2:39 AM IST = 21:09 UTC
     - cron: "9 21 * * *"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   produce-video:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
-      fail-fast: false   # ← one rashi failure must NOT cancel others
+      fail-fast: false
       matrix:
         rashi: ["Kark (Cancer)", "Singh (Leo)", "Kanya (Virgo)"]
 
@@ -21,7 +24,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Install Dependencies
         run: |

@@ -5,12 +5,15 @@ on:
     # 2:30 AM IST = 21:00 UTC (previous day)
     - cron: "0 21 * * *"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   produce-video:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
-      fail-fast: false   # ← one rashi failure must NOT cancel others
+      fail-fast: false
       matrix:
         rashi: ["Mesh (Aries)", "Vrushabh (Taurus)", "Mithun (Gemini)"]
 
@@ -21,7 +24,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Install Dependencies
         run: |

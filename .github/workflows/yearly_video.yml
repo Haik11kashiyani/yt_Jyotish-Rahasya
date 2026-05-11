@@ -10,12 +10,15 @@ on:
     # RUN ON DECEMBER 28th at 4:00 AM IST (22:30 UTC Dec 27)
     - cron: "30 22 27 12 *"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   produce-video:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
-      fail-fast: false   # ← one rashi failure must NOT cancel others
+      fail-fast: false
       matrix:
         rashi:
           [
@@ -40,7 +43,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Install Dependencies
         run: |
@@ -50,7 +53,7 @@ jobs:
           pip install -r requirements.txt
           playwright install --with-deps chromium
 
-      - name: Rate Limit Cooldown (Wait 3 Mins)
+      - name: Rate Limit Cooldown (3 Mins)
         run: |
           echo "⏳ Waiting 180 seconds before starting..."
           sleep 180
