@@ -10,16 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
-      fail-fast: true
+      fail-fast: false   # ← one rashi failure must NOT cancel others
       matrix:
         rashi: ["Mesh (Aries)", "Vrushabh (Taurus)", "Mithun (Gemini)"]
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
@@ -56,3 +56,4 @@ jobs:
           name: batch1-${{ matrix.rashi }}
           path: outputs/*.mp4
           retention-days: 7
+          if-no-files-found: warn
