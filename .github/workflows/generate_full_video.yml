@@ -1,53 +1,124 @@
-name: Generate Full Daily Video
-
+name: 🧪 Full Pipeline Test (Single Rashi)
+# Manual trigger only - use this to verify the full pipeline is working
+# Runs any video type for one rashi to confirm end-to-end production
 on:
   workflow_dispatch:
     inputs:
       rashi:
-        description: "Rashi to generate (e.g. Mesh (Aries))"
+        description: "Rashi to test (e.g. Singh (Leo))"
         required: true
-        default: "Mesh (Aries)"
+        default: "Singh (Leo)"
+      video_type:
+        description: "Video type to generate"
+        required: true
+        default: "shorts"
+        type: choice
+        options:
+          - shorts
+          - monthly
+          - yearly
+          - detailed
+      upload_to_youtube:
+        description: "Upload to YouTube after generation?"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "true"
+          - "false"
 
 permissions:
   contents: read
 
 jobs:
-  generate-full-video:
+  test-full-pipeline:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.10"
 
-      - name: Install dependencies
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg imagemagick
+          sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml
+          echo "✅ FFmpeg: $(ffmpeg -version | head -1)"
+          echo "✅ ImageMagick: $(convert --version | head -1)"
+
+      - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          playwright install chromium
+          playwright install --with-deps chromium
+          echo "✅ All Python deps installed"
 
-      - name: Run Main Script (Daily Shorts)
-        id: generate
+      - name: Verify Imports & Ephemeris
+        run: |
+          python -c "
+          import agents.astrologer, agents.director, agents.narrator, agents.ephemeris
+          print('✅ All agent imports OK')
+          from agents.ephemeris import get_daily_data, EPHEMERIS_AVAILABLE
+          print(f'✅ Ephemeris available: {EPHEMERIS_AVAILABLE}')
+          import pytz; from datetime import datetime
+          ist = pytz.timezone('Asia/Kolkata')
+          now = datetime.now(ist)
+          if EPHEMERIS_AVAILABLE:
+              d = get_daily_data(now)
+              print(f\"✅ Today Vara: {d['vara']}\")
+              print(f\"✅ Moon Nakshatra: {d['moon_nakshatra']}\")
+              print(f\"✅ Moon Rashi: {d['moon_rashi']}\")
+              print(f\"✅ Retrogrades: {d['retrogrades']}\")
+          "
+
+      - name: Run Production Pipeline
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_API_KEY_BACKUP: ${{ secrets.OPENROUTER_API_KEY_BACKUP }}
+          OPENROUTER_API_KEY_BACKUP_2: ${{ secrets.OPENROUTER_API_KEY_BACKUP_2 }}
           GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
         run: |
-          # Run main.py but EXCLUDE upload to just generate the file. 
-          # Pass --upload if you wanted to upload, but user just wants to SEE the file.
-          # We will assume user wants to download it, so we won't auto-upload to YT here unless specified.
-          # However, main.py uploads based on --upload flag. We will OMIT it to just generate local file.
-          python main.py --rashi "${{ github.event.inputs.rashi }}" --type shorts
+          echo "🎬 Rashi: ${{ github.event.inputs.rashi }}"
+          echo "📽️  Type: ${{ github.event.inputs.video_type }}"
+          echo "📤 Upload: ${{ github.event.inputs.upload_to_youtube }}"
+
+          UPLOAD_FLAG=""
+          if [ "${{ github.event.inputs.upload_to_youtube }}" = "true" ]; then
+            UPLOAD_FLAG="--upload"
+          fi
+
+          python main.py \
+            --rashi "${{ github.event.inputs.rashi }}" \
+            --type "${{ github.event.inputs.video_type }}" \
+            $UPLOAD_FLAG
+
+      - name: Show Run Report
+        if: always()
+        run: |
+          if [ -f outputs/run_report.json ]; then
+            echo "📝 Run Report:"
+            cat outputs/run_report.json
+          else
+            echo "⚠️ No run report found"
+          fi
 
       - name: Upload Generated Video
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: full-video-output
-          path: "outputs/*.mp4"
+          name: test-video-${{ github.event.inputs.video_type }}
+          path: |
+            outputs/*.mp4
+            outputs/run_report.json
+          retention-days: 3
+          if-no-files-found: warn
