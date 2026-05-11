@@ -30,8 +30,13 @@ on:
 permissions:
   contents: read
 
+# Opt into Node.js 24 to eliminate deprecation warnings
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   test-full-pipeline:
+
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
