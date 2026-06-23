@@ -28,8 +28,13 @@ jobs:
         run: |
           if [ -z "$ENCRYPTION_KEY" ]; then
             echo "❌ ERROR: ENCRYPTION_KEY secret is not set!"
-            echo "Please add ENCRYPTION_KEY to GitHub Secrets:"
-            echo "  https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo ""
+            echo "## 🔑 Generate Your Encryption Key" >> $GITHUB_STEP_SUMMARY
+            NEW_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+            echo "Copy this key and add it to GitHub Secrets:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$NEW_KEY" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
           
@@ -40,27 +45,26 @@ jobs:
           if [ $? -ne 0 ]; then
             echo "❌ ERROR: ENCRYPTION_KEY is not a valid Fernet key!"
             echo ""
-            echo "======================================================================"
-            echo "GENERATING A NEW VALID KEY FOR YOU:"
-            echo "======================================================================"
+            echo "## 🔑 Generate New Encryption Key" >> $GITHUB_STEP_SUMMARY
+            echo "Your current ENCRYPTION_KEY is invalid. Generate a new valid one:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             NEW_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
-            echo ""
-            echo "Copy this key:"
-            echo "$NEW_KEY"
-            echo ""
-            echo "======================================================================"
-            echo "UPDATE GITHUB SECRETS:"
-            echo "======================================================================"
-            echo "1. Go to: https://github.com/${{ github.repository }}/settings/secrets/actions"
-            echo "2. Click 'ENCRYPTION_KEY' (the existing one)"
-            echo "3. Replace the value with the key above"
-            echo "4. Save"
-            echo "5. The workflow will run automatically on the next push"
-            echo ""
+            echo "### New Valid Key:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$NEW_KEY" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Steps to Update:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Go to: https://github.com/${{ github.repository }}/settings/secrets/actions" >> $GITHUB_STEP_SUMMARY
+            echo "2. Click 'ENCRYPTION_KEY'" >> $GITHUB_STEP_SUMMARY
+            echo "3. Replace value with the key above" >> $GITHUB_STEP_SUMMARY
+            echo "4. Click 'Update secret'" >> $GITHUB_STEP_SUMMARY
+            echo "5. Workflow will run automatically" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
           
           echo "✓ ENCRYPTION_KEY is valid and ready!"
+          echo "✅ Encryption key validated successfully" >> $GITHUB_STEP_SUMMARY
 
       - name: Set up Python
         uses: actions/setup-python@v5
