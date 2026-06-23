@@ -2,6 +2,7 @@
 Encryption/Decryption utilities for securing sensitive Python modules.
 Uses symmetric encryption (Fernet) from cryptography library.
 This module is ALWAYS UNENCRYPTED as it's needed to decrypt others.
+Bootstrap version with ENCRYPTION_KEY support ready.
 """
 
 import os
