@@ -20,30 +20,61 @@ jobs:
           python -m pip install --upgrade pip
           pip install cryptography
 
+      - name: Validate ENCRYPTION_KEY
+        env:
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: |
+          if [ -z "$ENCRYPTION_KEY" ]; then
+            echo "❌ ERROR: ENCRYPTION_KEY secret is not set!"
+            echo "   Add ENCRYPTION_KEY to GitHub Secrets: Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          echo "✅ ENCRYPTION_KEY is set (${#ENCRYPTION_KEY} characters)"
+
       - name: Decrypt all modules
         env:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         run: |
-          python crypto_utils.py decrypt-all || true
+          echo "🔐 Decrypting all modules..."
+          python crypto_utils.py decrypt-all
+          if [ $? -ne 0 ]; then
+            echo "❌ Decryption failed!"
+            exit 1
+          fi
+          echo "✅ Decryption complete"
 
-      - name: List decrypted files (preview)
+      - name: List decrypted files
         run: |
-          echo "Decrypted files (preview):"
-          find . -type f -name "*.py" -not -path './.git/*' -not -name 'crypto_utils.py' -not -name 'secure_bootstrap.py' | sed -n '1,50p'
+          echo "📋 Decrypted files found:"
+          find . -type f -name "*.py" -not -path './.git/*' -not -name 'crypto_utils.py' -not -name 'secure_bootstrap.py' -not -path '*/.vscode/*' | head -50
 
       - name: Verify decrypted files compile
         run: |
-          echo "Compiling decrypted .py files to check syntax..."
-          set -e
-          files=$(find . -type f -name "*.py" -not -path './.git/*' -not -name 'crypto_utils.py' -not -name 'secure_bootstrap.py')
+          echo "🔍 Compiling decrypted .py files to check syntax..."
+          files=$(find . -type f -name "*.py" -not -path './.git/*' -not -name 'crypto_utils.py' -not -name 'secure_bootstrap.py' -not -path '*/.vscode/*')
           if [ -z "$files" ]; then
-            echo "No decrypted .py files found to compile.";
-          else
-            for f in $files; do
-              echo "Compiling $f";
-              python -m py_compile "$f" || echo "FAILED: $f";
-            done
+            echo "❌ No decrypted .py files found!"
+            exit 1
           fi
+          
+          count=0
+          failed=0
+          for f in $files; do
+            count=$((count + 1))
+            if python -m py_compile "$f" 2>&1; then
+              echo "✅ $f"
+            else
+              echo "❌ FAILED: $f"
+              failed=$((failed + 1))
+            fi
+          done
+          
+          echo "📊 Summary: $count files, $failed failures"
+          if [ $failed -gt 0 ]; then
+            echo "❌ Some files failed to compile!"
+            exit 1
+          fi
+          echo "✅ All files compiled successfully!"
 
       - name: Cleanup decrypted files
         if: always()
@@ -51,5 +82,5 @@ jobs:
           python - <<'PY'
 from crypto_utils import cleanup_decrypted_files
 cleanup_decrypted_files('.')
-print('Cleanup complete')
+print('✅ Cleanup complete')
 PY
