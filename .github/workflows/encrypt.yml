@@ -13,76 +13,106 @@ permissions:
   contents: write
 
 jobs:
-  encrypt-all:
+  encrypt-source-code:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout repository
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python 3.11
+      - name: Validate Encryption Key
+        env:
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: |
+          if [ -z "$ENCRYPTION_KEY" ]; then
+            echo "❌ ERROR: ENCRYPTION_KEY secret is not set!"
+            echo "Please add ENCRYPTION_KEY to GitHub Secrets: https://github.com/${{ github.repository }}/settings/secrets/actions"
+            exit 1
+          fi
+          echo "✓ ENCRYPTION_KEY is set (length: ${#ENCRYPTION_KEY})"
+
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install cryptography
-        run: pip install --quiet cryptography
+      - name: Install Dependencies
+        run: pip install cryptography -q
 
-      - name: Check if files need encryption
+      - name: Check if already encrypted
         run: |
           if [ -f "agents/astrologer.encrypted.py" ]; then
-            echo "STATUS=ALREADY_ENCRYPTED" >> $GITHUB_ENV
+            echo "✓ Files already encrypted, skipping"
+            echo "SKIP_ENCRYPTION=true" >> $GITHUB_ENV
           else
-            echo "STATUS=NEEDS_ENCRYPTION" >> $GITHUB_ENV
+            echo "✗ Files not encrypted yet, proceeding"
+            echo "SKIP_ENCRYPTION=false" >> $GITHUB_ENV
           fi
-
-      - name: Display encryption key status
-        run: |
-          if [ -z "$ENCRYPTION_KEY" ]; then
-            echo "❌ ERROR: ENCRYPTION_KEY is not set!"
-            exit 1
-          else
-            echo "✓ ENCRYPTION_KEY is set (length: ${#ENCRYPTION_KEY})"
-          fi
-        env:
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
 
       - name: Encrypt all Python files
-        if: env.STATUS == 'NEEDS_ENCRYPTION'
+        if: env.SKIP_ENCRYPTION == 'false'
         env:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         run: |
-          echo "🔐 Starting encryption..."
+          echo "📦 Starting encryption process..."
+          echo "ENCRYPTION_KEY length: ${#ENCRYPTION_KEY}"
+          
+          # Run encryption
           python crypto_utils.py encrypt-all
+          ENCRYPT_EXIT=$?
+          
+          if [ $ENCRYPT_EXIT -ne 0 ]; then
+            echo "❌ Encryption failed with exit code: $ENCRYPT_EXIT"
+            exit $ENCRYPT_EXIT
+          fi
+          
           echo "✓ Encryption complete"
-          
           echo ""
-          echo "Encrypted files created:"
-          find . -name "*.encrypted.py" -type f | head -20
-          
+          echo "📊 Root encrypted files:"
+          ls -lh *.encrypted.py 2>/dev/null || echo "  (none)"
           echo ""
-          echo "Remaining unencrypted .py files (should be only bootstrap):"
-          find . -name "*.py" -type f | grep -v ".encrypted.py" | grep -v "__pycache__" | sort
+          echo "📊 Agent encrypted files:"
+          ls -lh agents/*.encrypted.py 2>/dev/null || echo "  (none)"
+          echo ""
+          echo "📊 Unencrypted bootstrap files (expected):"
+          ls -lh crypto_utils.py secure_bootstrap.py 2>/dev/null || echo "  (missing)"
 
-      - name: Configure Git user
+      - name: Configure Git
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
 
       - name: Commit and push encrypted files
-        if: env.STATUS == 'NEEDS_ENCRYPTION'
+        if: env.SKIP_ENCRYPTION == 'false'
         run: |
-          git add -A
+          echo "📝 Checking for changes..."
           git status
           
-          if [ -n "$(git diff --cached)" ]; then
-            git commit -m "🔐 Auto-encrypt source code - all 15 Python modules encrypted"
-            git push origin main
-            echo "✓ Encrypted files committed and pushed"
+          if git diff --quiet --cached; then
+            echo "✓ No new encrypted files to commit"
           else
-            echo "✓ No changes needed"
+            echo "📤 Committing encrypted files..."
+            git add -A
+            git commit -m "🔐 Auto-encrypt project source code [skip ci]"
+            git push origin main
+            echo "✓ Push successful!"
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo ""
+          echo "═══════════════════════════════════════════"
+          echo "🔐 Encryption Workflow Complete"
+          echo "═══════════════════════════════════════════"
+          if [ "${{ env.SKIP_ENCRYPTION }}" = "true" ]; then
+            echo "Status: ✓ Already Encrypted (No action needed)"
+          elif [ "${{ job.status }}" = "success" ]; then
+            echo "Status: ✓ Successfully Encrypted"
+          else
+            echo "Status: ❌ Encryption Failed"
+            echo "Check logs above for details"
+          fi
+          echo ""
