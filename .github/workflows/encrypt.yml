@@ -28,10 +28,27 @@ jobs:
         run: |
           if [ -z "$ENCRYPTION_KEY" ]; then
             echo "❌ ERROR: ENCRYPTION_KEY secret is not set!"
-            echo "Please add ENCRYPTION_KEY to GitHub Secrets: https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo "Please add ENCRYPTION_KEY to GitHub Secrets:"
+            echo "  https://github.com/${{ github.repository }}/settings/secrets/actions"
             exit 1
           fi
+          
           echo "✓ ENCRYPTION_KEY is set (length: ${#ENCRYPTION_KEY})"
+          
+          # Validate key format
+          python setup_encryption_key.py validate "$ENCRYPTION_KEY"
+          if [ $? -ne 0 ]; then
+            echo "❌ ERROR: ENCRYPTION_KEY is not a valid Fernet key!"
+            echo ""
+            echo "Generate a new valid key:"
+            echo "  python setup_encryption_key.py generate"
+            echo ""
+            echo "Then add it to GitHub Secrets:"
+            echo "  https://github.com/${{ github.repository }}/settings/secrets/actions"
+            exit 1
+          fi
+          
+          echo "✓ ENCRYPTION_KEY is valid"
 
       - name: Set up Python
         uses: actions/setup-python@v5
