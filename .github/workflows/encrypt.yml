@@ -7,7 +7,6 @@ on:
     paths:
       - '**.py'
       - 'requirements.txt'
-      - '.github/workflows/encrypt.yml'
   workflow_dispatch:
 
 permissions:
@@ -21,7 +20,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,40 +28,38 @@ jobs:
           python-version: "3.11"
 
       - name: Install Dependencies
-        run: |
-          pip install cryptography
+        run: pip install cryptography
 
-      - name: 🔓 Check if already encrypted
+      - name: Check if already encrypted
         run: |
-          if ls agents/*.encrypted.py 2>/dev/null | grep -q .; then
-            echo "Files already encrypted"
-            echo "ALREADY_ENCRYPTED=true" >> $GITHUB_ENV
+          if [ -f "agents/astrologer.encrypted.py" ]; then
+            echo "✓ Files already encrypted, skipping"
+            echo "SKIP_ENCRYPTION=true" >> $GITHUB_ENV
           else
-            echo "Files not encrypted yet"
-            echo "ALREADY_ENCRYPTED=false" >> $GITHUB_ENV
+            echo "✗ Files not encrypted yet, proceeding"
+            echo "SKIP_ENCRYPTION=false" >> $GITHUB_ENV
           fi
 
-      - name: 🔐 Encrypt all Python files
-        if: env.ALREADY_ENCRYPTED == 'false'
+      - name: Encrypt all Python files
+        if: env.SKIP_ENCRYPTION == 'false'
         env:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         run: |
-          if [ -z "$ENCRYPTION_KEY" ]; then
-            echo "ERROR: ENCRYPTION_KEY secret not set!"
-            exit 1
-          fi
+          echo "ENCRYPTION_KEY length: ${#ENCRYPTION_KEY}"
           python crypto_utils.py encrypt-all
+          echo "✓ Encryption complete"
+          ls -la *.encrypted.py 2>/dev/null || echo "No root encrypted files"
+          ls -la agents/*.encrypted.py 2>/dev/null || echo "No agent encrypted files"
 
-      - name: 📝 Commit encrypted files
-        if: env.ALREADY_ENCRYPTED == 'false'
+      - name: Configure Git
         run: |
-          git config user.name "GitHub Actions"
+          git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
-          git add -A
-          git commit -m "🔐 Auto-encrypt project source code" || echo "No changes to commit"
-          git push
 
-      - name: ✅ Encryption complete
+      - name: Commit and push encrypted files
+        if: env.SKIP_ENCRYPTION == 'false'
         run: |
-          echo "Encryption status: $ALREADY_ENCRYPTED"
-          echo "Repository is now fully encrypted!"
+          git add -A
+          git status
+          git commit -m "🔐 Auto-encrypt project source code" || echo "No changes to commit"
+          git push origin main || echo "Push failed - may have been encrypted already"
