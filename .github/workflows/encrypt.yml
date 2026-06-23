@@ -159,17 +159,29 @@ jobs:
       - name: Commit and push encrypted files
         if: env.KEY_ACTION == 'VALID' && env.SKIP_ENCRYPTION == 'false'
         run: |
+          set -eux
           echo "📝 Checking for changes..."
-          git status
-          
-          if git diff --quiet --cached; then
-            echo "✓ No new encrypted files to commit"
-          else
+          git status --short
+
+          echo "📤 Staging encrypted files..."
+          git add -A
+          echo "git add exit status: $?"
+
+          echo "📌 Status after staging:"
+          git status --short
+
+          echo "📦 Staged changes:"
+          git diff --cached --name-only || true
+
+          if [ -n "$(git diff --cached --name-only)" ]; then
             echo "📤 Committing encrypted files..."
-            git add -A
             git commit -m "🔐 Auto-encrypt project source code [skip ci]"
+            echo "git commit exit status: $?"
             git push origin main
+            echo "git push exit status: $?"
             echo "✓ Push successful!"
+          else
+            echo "✓ No staged changes to commit"
           fi
 
       - name: Summary

@@ -1,0 +1,55 @@
+name: Decrypt and Verify
+
+on:
+  workflow_dispatch:
+
+jobs:
+  decrypt-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install cryptography
+        run: |
+          python -m pip install --upgrade pip
+          pip install cryptography
+
+      - name: Decrypt all modules
+        env:
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: |
+          python crypto_utils.py decrypt-all || true
+
+      - name: List decrypted files (preview)
+        run: |
+          echo "Decrypted files (preview):"
+          find . -type f -name "*.py" -not -path './.git/*' -not -name 'crypto_utils.py' -not -name 'secure_bootstrap.py' | sed -n '1,50p'
+
+      - name: Verify decrypted files compile
+        run: |
+          echo "Compiling decrypted .py files to check syntax..."
+          set -e
+          files=$(find . -type f -name "*.py" -not -path './.git/*' -not -name 'crypto_utils.py' -not -name 'secure_bootstrap.py')
+          if [ -z "$files" ]; then
+            echo "No decrypted .py files found to compile.";
+          else
+            for f in $files; do
+              echo "Compiling $f";
+              python -m py_compile "$f" || echo "FAILED: $f";
+            done
+          fi
+
+      - name: Cleanup decrypted files
+        if: always()
+        run: |
+          python - <<'PY'
+from crypto_utils import cleanup_decrypted_files
+cleanup_decrypted_files('.')
+print('Cleanup complete')
+PY
