@@ -24,8 +24,46 @@ jobs:
           pip install -r requirements.txt
           playwright install chromium
 
+      - name: Install Dependencies (Including Cryptography)
+        run: |
+          pip install cryptography
+
+      - name: 🔓 Decrypt All Modules
+        env:
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: |
+          if [ -z "$ENCRYPTION_KEY" ]; then
+            echo "❌ ERROR: ENCRYPTION_KEY secret not set!"
+            echo "   Add ENCRYPTION_KEY to GitHub Secrets: Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          echo "🔐 Decrypting all modules..."
+          python -c "
+          from crypto_utils import ModuleEncryptor
+          import os
+          
+          key = os.getenv('ENCRYPTION_KEY')
+          if not key:
+              raise ValueError('ENCRYPTION_KEY not set')
+          
+          encryptor = ModuleEncryptor(key)
+          count = encryptor.decrypt_all('.')
+          if count == 0:
+              print('⚠️  Warning: No encrypted files found')
+          else:
+              print(f'✅ Successfully decrypted {count} files')
+          "
+
       - name: Generate Test Videos
         run: python generate_test_videos.py
+
+      - name: 🧹 Cleanup Decrypted Files
+        if: always()
+        run: |
+          python -c "
+          from crypto_utils import cleanup_decrypted_files
+          cleanup_decrypted_files('.')
+          "
 
       - name: Upload Test Videos
         uses: actions/upload-artifact@v4

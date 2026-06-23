@@ -49,6 +49,36 @@ jobs:
           print('MMS-TTS Hindi model ready!')
           "
 
+      - name: Install Dependencies (Including Cryptography)
+        run: |
+          pip install cryptography
+
+      - name: 🔓 Decrypt All Modules
+        env:
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: |
+          if [ -z "$ENCRYPTION_KEY" ]; then
+            echo "❌ ERROR: ENCRYPTION_KEY secret not set!"
+            echo "   Add ENCRYPTION_KEY to GitHub Secrets: Settings > Secrets and variables > Actions"
+            exit 1
+          fi
+          echo "🔐 Decrypting all modules..."
+          python -c "
+          from crypto_utils import ModuleEncryptor
+          import os
+          
+          key = os.getenv('ENCRYPTION_KEY')
+          if not key:
+              raise ValueError('ENCRYPTION_KEY not set')
+          
+          encryptor = ModuleEncryptor(key)
+          count = encryptor.decrypt_all('.')
+          if count == 0:
+              print('⚠️  Warning: No encrypted files found')
+          else:
+              print(f'✅ Successfully decrypted {count} files')
+          "
+
       - name: Rate Limit Cooldown (4 Mins)
         run: |
           echo "⏳ Waiting 4 minutes for rate limits..."
@@ -67,11 +97,10 @@ jobs:
         run: |
           python main.py --rashi "${{ matrix.rashi }}" --type shorts --upload
 
-      - name: Upload Artifact
+      - name: 🧹 Cleanup Decrypted Files
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: batch3-${{ matrix.rashi }}
-          path: outputs/*.mp4
-          retention-days: 7
-          if-no-files-found: warn
+        run: |
+          python -c "
+          from crypto_utils import cleanup_decrypted_files
+          cleanup_decrypted_files('.')
+          "

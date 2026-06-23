@@ -1,0 +1,68 @@
+name: 🔐 Encrypt Project on Push
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.py'
+      - 'requirements.txt'
+      - '.github/workflows/encrypt.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  encrypt-source-code:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          pip install cryptography
+
+      - name: 🔓 Check if already encrypted
+        run: |
+          if ls agents/*.encrypted.py 2>/dev/null | grep -q .; then
+            echo "Files already encrypted"
+            echo "ALREADY_ENCRYPTED=true" >> $GITHUB_ENV
+          else
+            echo "Files not encrypted yet"
+            echo "ALREADY_ENCRYPTED=false" >> $GITHUB_ENV
+          fi
+
+      - name: 🔐 Encrypt all Python files
+        if: env.ALREADY_ENCRYPTED == 'false'
+        env:
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+        run: |
+          if [ -z "$ENCRYPTION_KEY" ]; then
+            echo "ERROR: ENCRYPTION_KEY secret not set!"
+            exit 1
+          fi
+          python crypto_utils.py encrypt-all
+
+      - name: 📝 Commit encrypted files
+        if: env.ALREADY_ENCRYPTED == 'false'
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -m "🔐 Auto-encrypt project source code" || echo "No changes to commit"
+          git push
+
+      - name: ✅ Encryption complete
+        run: |
+          echo "Encryption status: $ALREADY_ENCRYPTED"
+          echo "Repository is now fully encrypted!"
