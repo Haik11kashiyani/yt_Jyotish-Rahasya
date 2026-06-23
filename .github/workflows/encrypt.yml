@@ -1,4 +1,4 @@
-name: 🔐 Encrypt Project on Push
+name: Encrypt Project on Push
 
 on:
   push:
@@ -41,7 +41,7 @@ jobs:
           encryption_key = os.getenv("ENCRYPTION_KEY", "").strip()
           
           if not encryption_key:
-              print("📋 No ENCRYPTION_KEY found. Generating new valid key...")
+              print("[*] No ENCRYPTION_KEY found. Generating new valid key...")
               new_key = Fernet.generate_key().decode()
               with open("/tmp/encryption_key.txt", "w") as f:
                   f.write(new_key)
@@ -53,11 +53,11 @@ jobs:
               # Validate existing key
               try:
                   Fernet(encryption_key.encode())
-                  print("✓ ENCRYPTION_KEY is valid!")
+                  print("[OK] ENCRYPTION_KEY is valid!")
                   with open(os.getenv("GITHUB_ENV"), "a") as env:
                       env.write("KEY_ACTION=VALID\n")
               except Exception as e:
-                  print(f"⚠️ Invalid key: {str(e)}")
+                  print(f"[WARN] Invalid key: {str(e)}")
                   print(f"Key starts with: {encryption_key[:20]}")
                   print("Generating new valid key...")
                   new_key = Fernet.generate_key().decode()
@@ -76,8 +76,8 @@ jobs:
           cat /tmp/encryption_key.txt > /tmp/artifact/ENCRYPTION_KEY.txt
           
           # Also display in logs
-          echo "=========================================="
-          echo "🔐 ENCRYPTION KEY UPDATE REQUIRED"
+          echo "=========================================" 
+          echo "[*] ENCRYPTION KEY UPDATE REQUIRED"
           echo "=========================================="
           echo ""
           echo "Copy this key:"
@@ -108,10 +108,10 @@ jobs:
         if: env.KEY_ACTION == 'VALID'
         run: |
           if [ -f "agents/astrologer.encrypted.py" ]; then
-            echo "✓ Files already encrypted, skipping"
+            echo "[OK] Files already encrypted, skipping"
             echo "SKIP_ENCRYPTION=true" >> $GITHUB_ENV
           else
-            echo "✗ Files not encrypted yet, proceeding"
+            echo "[*] Files not encrypted yet, proceeding"
             echo "SKIP_ENCRYPTION=false" >> $GITHUB_ENV
           fi
 
@@ -120,13 +120,13 @@ jobs:
         env:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         run: |
-          echo "📦 Starting encryption process..."
+          echo "[*] Starting encryption process..."
           echo "ENCRYPTION_KEY length: ${#ENCRYPTION_KEY}"
           echo "ENCRYPTION_KEY first 10 chars: ${ENCRYPTION_KEY:0:10}"
           
           # Validate key format (should start with gAAAAAB for Fernet)
           if [[ ! "$ENCRYPTION_KEY" =~ ^gAAAAAB ]]; then
-            echo "⚠️  WARNING: ENCRYPTION_KEY may not be a valid Fernet key"
+            echo "[WARN] WARNING: ENCRYPTION_KEY may not be a valid Fernet key"
             echo "   Expected format: gAAAAAB... (Fernet key)"
             echo "   See: https://github.com/${{ github.repository }}/settings/secrets/actions"
           fi
@@ -136,19 +136,19 @@ jobs:
           ENCRYPT_EXIT=$?
           
           if [ $ENCRYPT_EXIT -ne 0 ]; then
-            echo "❌ Encryption failed with exit code: $ENCRYPT_EXIT"
+            echo "[ERROR] Encryption failed with exit code: $ENCRYPT_EXIT"
             exit $ENCRYPT_EXIT
           fi
           
-          echo "✓ Encryption complete"
+          echo "[OK] Encryption complete"
           echo ""
-          echo "📊 Root encrypted files:"
+          echo "[*] Root encrypted files:"
           ls -lh *.encrypted.py 2>/dev/null || echo "  (none)"
           echo ""
-          echo "📊 Agent encrypted files:"
+          echo "[*] Agent encrypted files:"
           ls -lh agents/*.encrypted.py 2>/dev/null || echo "  (none)"
           echo ""
-          echo "📊 Unencrypted bootstrap files (expected):"
+          echo "[*] Unencrypted bootstrap files (expected):"
           ls -lh crypto_utils.py secure_bootstrap.py 2>/dev/null || echo "  (missing)"
 
       - name: Configure Git
@@ -160,43 +160,43 @@ jobs:
         if: env.KEY_ACTION == 'VALID' && env.SKIP_ENCRYPTION == 'false'
         run: |
           set -eux
-          echo "📝 Checking for changes..."
+          echo "[*] Checking for changes..."
           git status --short
 
-          echo "📤 Staging encrypted files..."
+          echo "[*] Staging encrypted files..."
           git add -A
           echo "git add exit status: $?"
 
-          echo "📌 Status after staging:"
+          echo "[*] Status after staging:"
           git status --short
 
-          echo "📦 Staged changes:"
+          echo "[*] Staged changes:"
           git diff --cached --name-only || true
 
           if [ -n "$(git diff --cached --name-only)" ]; then
-            echo "📤 Committing encrypted files..."
+            echo "[*] Committing encrypted files..."
             git commit -m "🔐 Auto-encrypt project source code [skip ci]"
             echo "git commit exit status: $?"
             git push origin main
             echo "git push exit status: $?"
-            echo "✓ Push successful!"
+            echo "[OK] Push successful!"
           else
-            echo "✓ No staged changes to commit"
+            echo "[OK] No staged changes to commit"
           fi
 
       - name: Summary
         if: always()
         run: |
           echo ""
-          echo "═══════════════════════════════════════════"
-          echo "🔐 Encryption Workflow Complete"
-          echo "═══════════════════════════════════════════"
+          echo "===================================================="
+          echo "[*] Encryption Workflow Complete"
+          echo "===================================================="
           if [ "${{ env.SKIP_ENCRYPTION }}" = "true" ]; then
-            echo "Status: ✓ Already Encrypted (No action needed)"
+            echo "Status: [OK] Already Encrypted (No action needed)"
           elif [ "${{ job.status }}" = "success" ]; then
-            echo "Status: ✓ Successfully Encrypted"
+            echo "Status: [OK] Successfully Encrypted"
           else
-            echo "Status: ❌ Encryption Failed"
+            echo "Status: [ERROR] Encryption Failed"
             echo "Check logs above for details"
           fi
           echo ""

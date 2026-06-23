@@ -25,35 +25,35 @@ jobs:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         run: |
           if [ -z "$ENCRYPTION_KEY" ]; then
-            echo "❌ ERROR: ENCRYPTION_KEY secret is not set!"
+            echo "[ERROR] ENCRYPTION_KEY secret is not set!"
             echo "   Add ENCRYPTION_KEY to GitHub Secrets: Settings > Secrets and variables > Actions"
             exit 1
           fi
-          echo "✅ ENCRYPTION_KEY is set (${#ENCRYPTION_KEY} characters)"
+          echo "[OK] ENCRYPTION_KEY is set (${#ENCRYPTION_KEY} characters)"
 
       - name: Decrypt all modules
         env:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         run: |
-          echo "🔐 Decrypting all modules..."
+          echo "[*] Decrypting all modules..."
           python crypto_utils.py decrypt-all
           if [ $? -ne 0 ]; then
-            echo "❌ Decryption failed!"
+            echo "[ERROR] Decryption failed!"
             exit 1
           fi
-          echo "✅ Decryption complete"
+          echo "[OK] Decryption complete"
 
       - name: List decrypted files
         run: |
-          echo "📋 Decrypted files found:"
+          echo "[*] Decrypted files found:"
           find . -type f -name "*.py" -not -path './.git/*' -not -name 'crypto_utils.py' -not -name 'secure_bootstrap.py' -not -path '*/.vscode/*' | head -50
 
       - name: Verify decrypted files compile
         run: |
-          echo "🔍 Compiling decrypted .py files to check syntax..."
+          echo "[*] Compiling decrypted .py files to check syntax..."
           files=$(find . -type f -name "*.py" -not -path './.git/*' -not -name 'crypto_utils.py' -not -name 'secure_bootstrap.py' -not -path '*/.vscode/*')
           if [ -z "$files" ]; then
-            echo "❌ No decrypted .py files found!"
+            echo "[ERROR] No decrypted .py files found!"
             exit 1
           fi
           
@@ -62,19 +62,19 @@ jobs:
           for f in $files; do
             count=$((count + 1))
             if python -m py_compile "$f" 2>&1; then
-              echo "✅ $f"
+              echo "[OK] $f"
             else
-              echo "❌ FAILED: $f"
+              echo "[FAIL] $f"
               failed=$((failed + 1))
             fi
           done
           
-          echo "📊 Summary: $count files, $failed failures"
+          echo "[*] Summary: $count files, $failed failures"
           if [ $failed -gt 0 ]; then
-            echo "❌ Some files failed to compile!"
+            echo "[ERROR] Some files failed to compile!"
             exit 1
           fi
-          echo "✅ All files compiled successfully!"
+          echo "[OK] All files compiled successfully!"
 
       - name: Cleanup decrypted files
         if: always()
@@ -82,5 +82,5 @@ jobs:
           python - <<'PY'
 from crypto_utils import cleanup_decrypted_files
 cleanup_decrypted_files('.')
-print('✅ Cleanup complete')
+print('[OK] Cleanup complete')
 PY
