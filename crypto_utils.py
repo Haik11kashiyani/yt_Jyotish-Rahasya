@@ -369,10 +369,27 @@ if __name__ == "__main__":
         encryptor.decrypt_file(sys.argv[2])
     
     elif command == "encrypt-all":
-        encryptor = ModuleEncryptor()
-        count = encryptor.encrypt_all()
-        if count == 0:
-            print("❌ No files encrypted")
+        try:
+            encryptor = ModuleEncryptor()
+            count = encryptor.encrypt_all()
+            if count == 0:
+                print("⚠️  No files were encrypted (already encrypted or no files found)")
+                sys.exit(0)  # Don't fail, just warn
+            else:
+                print(f"✅ Successfully encrypted {count} file(s)")
+        except ValueError as e:
+            print(f"❌ ERROR: {e}")
+            print("")
+            print("Troubleshooting:")
+            print("  1. Verify ENCRYPTION_KEY is set: echo $ENCRYPTION_KEY")
+            print("  2. Verify it's a valid Fernet key (starts with 'gAAAAAB')")
+            print("  3. Generate a new key: python crypto_utils.py generate-key")
+            print("  4. Add it to GitHub Secrets: https://github.com/settings/secrets/actions")
+            sys.exit(1)
+        except Exception as e:
+            print(f"❌ ERROR: Encryption failed: {e}")
+            import traceback
+            traceback.print_exc()
             sys.exit(1)
     
     elif command == "decrypt-all":

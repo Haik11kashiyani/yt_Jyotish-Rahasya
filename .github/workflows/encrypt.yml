@@ -58,9 +58,17 @@ jobs:
         run: |
           echo "📦 Starting encryption process..."
           echo "ENCRYPTION_KEY length: ${#ENCRYPTION_KEY}"
+          echo "ENCRYPTION_KEY first 10 chars: ${ENCRYPTION_KEY:0:10}"
           
-          # Run encryption
-          python crypto_utils.py encrypt-all
+          # Validate key format (should start with gAAAAAB for Fernet)
+          if [[ ! "$ENCRYPTION_KEY" =~ ^gAAAAAB ]]; then
+            echo "⚠️  WARNING: ENCRYPTION_KEY may not be a valid Fernet key"
+            echo "   Expected format: gAAAAAB... (Fernet key)"
+            echo "   See: https://github.com/${{ github.repository }}/settings/secrets/actions"
+          fi
+          
+          # Run encryption with verbose output
+          python -u crypto_utils.py encrypt-all 2>&1
           ENCRYPT_EXIT=$?
           
           if [ $ENCRYPT_EXIT -ne 0 ]; then
