@@ -36,19 +36,31 @@ jobs:
           echo "✓ ENCRYPTION_KEY is set (length: ${#ENCRYPTION_KEY})"
           
           # Validate key format
-          python setup_encryption_key.py validate "$ENCRYPTION_KEY"
+          python setup_encryption_key.py validate "$ENCRYPTION_KEY" 2>/dev/null
           if [ $? -ne 0 ]; then
             echo "❌ ERROR: ENCRYPTION_KEY is not a valid Fernet key!"
             echo ""
-            echo "Generate a new valid key:"
-            echo "  python setup_encryption_key.py generate"
+            echo "======================================================================"
+            echo "GENERATING A NEW VALID KEY FOR YOU:"
+            echo "======================================================================"
+            NEW_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
             echo ""
-            echo "Then add it to GitHub Secrets:"
-            echo "  https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo "Copy this key:"
+            echo "$NEW_KEY"
+            echo ""
+            echo "======================================================================"
+            echo "UPDATE GITHUB SECRETS:"
+            echo "======================================================================"
+            echo "1. Go to: https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo "2. Click 'ENCRYPTION_KEY' (the existing one)"
+            echo "3. Replace the value with the key above"
+            echo "4. Save"
+            echo "5. The workflow will run automatically on the next push"
+            echo ""
             exit 1
           fi
           
-          echo "✓ ENCRYPTION_KEY is valid"
+          echo "✓ ENCRYPTION_KEY is valid and ready!"
 
       - name: Set up Python
         uses: actions/setup-python@v5
