@@ -22,31 +22,51 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies  
+        run: pip install cryptography -q
+
       - name: Validate Encryption Key and Generate If Needed
         env:
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
         run: |
-          if [ -z "$ENCRYPTION_KEY" ]; then
-            echo "No ENCRYPTION_KEY found. Generating new valid key..."
-            NEW_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
-            echo "$NEW_KEY" > /tmp/encryption_key.txt
-            echo "NEW_ENCRYPTION_KEY=$NEW_KEY" >> $GITHUB_ENV
-            echo "KEY_ACTION=UPDATE_NEEDED" >> $GITHUB_ENV
-            exit 0
-          fi
+          python << 'EOF'
+          import os
+          from cryptography.fernet import Fernet
           
-          # Validate existing key
-          python setup_encryption_key.py validate "$ENCRYPTION_KEY" 2>/dev/null
-          if [ $? -eq 0 ]; then
-            echo "✓ ENCRYPTION_KEY is valid!"
-            echo "KEY_ACTION=VALID" >> $GITHUB_ENV
-          else
-            echo "Invalid key. Generating new one..."
-            NEW_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
-            echo "$NEW_KEY" > /tmp/encryption_key.txt
-            echo "NEW_ENCRYPTION_KEY=$NEW_KEY" >> $GITHUB_ENV
-            echo "KEY_ACTION=INVALID" >> $GITHUB_ENV
-          fi
+          encryption_key = os.getenv("ENCRYPTION_KEY", "").strip()
+          
+          if not encryption_key:
+              print("📋 No ENCRYPTION_KEY found. Generating new valid key...")
+              new_key = Fernet.generate_key().decode()
+              with open("/tmp/encryption_key.txt", "w") as f:
+                  f.write(new_key)
+              print(f"Generated key: {new_key[:20]}...")
+              with open(os.getenv("GITHUB_ENV"), "a") as env:
+                  env.write(f"NEW_ENCRYPTION_KEY={new_key}\n")
+                  env.write("KEY_ACTION=UPDATE_NEEDED\n")
+          else:
+              # Validate existing key
+              try:
+                  Fernet(encryption_key.encode())
+                  print("✓ ENCRYPTION_KEY is valid!")
+                  with open(os.getenv("GITHUB_ENV"), "a") as env:
+                      env.write("KEY_ACTION=VALID\n")
+              except Exception as e:
+                  print(f"⚠️ Invalid key: {str(e)}")
+                  print(f"Key starts with: {encryption_key[:20]}")
+                  print("Generating new valid key...")
+                  new_key = Fernet.generate_key().decode()
+                  with open("/tmp/encryption_key.txt", "w") as f:
+                      f.write(new_key)
+                  with open(os.getenv("GITHUB_ENV"), "a") as env:
+                      env.write(f"NEW_ENCRYPTION_KEY={new_key}\n")
+                      env.write("KEY_ACTION=INVALID\n")
+          EOF
 
       - name: Display Key Instructions
         if: env.KEY_ACTION != 'VALID'
@@ -83,14 +103,6 @@ jobs:
           name: encryption-key
           path: /tmp/artifact/ENCRYPTION_KEY.txt
           retention-days: 7
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install Dependencies
-        run: pip install cryptography -q
 
       - name: Check if already encrypted
         if: env.KEY_ACTION == 'VALID'
