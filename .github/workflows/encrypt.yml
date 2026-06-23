@@ -51,24 +51,38 @@ jobs:
       - name: Display Key Instructions
         if: env.KEY_ACTION != 'VALID'
         run: |
-          echo "## 🔐 Encryption Key Update Required" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Your ENCRYPTION_KEY is either missing or invalid." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Use this key:" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/encryption_key.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Update steps:" >> $GITHUB_STEP_SUMMARY
-          echo "1. Go to GitHub Secrets: https://github.com/${{ github.repository }}/settings/secrets/actions" >> $GITHUB_STEP_SUMMARY
-          echo "2. Click 'New repository secret'" >> $GITHUB_STEP_SUMMARY
-          echo "3. Name: `ENCRYPTION_KEY`" >> $GITHUB_STEP_SUMMARY
-          echo "4. Value: Copy-paste the key above" >> $GITHUB_STEP_SUMMARY
-          echo "5. Click 'Add secret'" >> $GITHUB_STEP_SUMMARY
-          echo "6. Workflow will auto-run on next push" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "⚠️ **This workflow will continue until a valid key is set.**" >> $GITHUB_STEP_SUMMARY
+          # Create the encryption_key artifact file
+          mkdir -p /tmp/artifact
+          cat /tmp/encryption_key.txt > /tmp/artifact/ENCRYPTION_KEY.txt
+          
+          # Also display in logs
+          echo "=========================================="
+          echo "🔐 ENCRYPTION KEY UPDATE REQUIRED"
+          echo "=========================================="
+          echo ""
+          echo "Copy this key:"
+          echo ""
+          cat /tmp/encryption_key.txt
+          echo ""
+          echo "=========================================="
+          echo ""
+          echo "Steps to update GitHub Secrets:"
+          echo "1. Go to: https://github.com/${{ github.repository }}/settings/secrets/actions"
+          echo "2. Click 'New repository secret' (if ENCRYPTION_KEY doesn't exist)"
+          echo "   OR click the pencil icon next to ENCRYPTION_KEY (if it exists)"
+          echo "3. Name: ENCRYPTION_KEY"
+          echo "4. Paste the key above into the Value field"
+          echo "5. Click 'Add secret' or 'Update secret'"
+          echo "6. The workflow will auto-trigger on next push"
+          echo ""
+
+      - name: Upload Encryption Key (if needed)
+        if: env.KEY_ACTION != 'VALID'
+        uses: actions/upload-artifact@v4
+        with:
+          name: encryption-key
+          path: /tmp/artifact/ENCRYPTION_KEY.txt
+          retention-days: 7
 
       - name: Set up Python
         uses: actions/setup-python@v5
